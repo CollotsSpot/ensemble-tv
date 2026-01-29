@@ -41,6 +41,8 @@ class AuthManager {
       _tvLogger.log('Auth response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
+        _logger.log('Auth response body: ${response.body}');
+        _tvLogger.log('Response body: ${response.body}');
         final data = jsonDecode(response.body) as Map<String, dynamic>;
 
         if (data.containsKey('error_code')) {
