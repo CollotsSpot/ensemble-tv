@@ -1,0 +1,5 @@
+package com.collotsspot.ensemble_tv
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity : FlutterActivity()
