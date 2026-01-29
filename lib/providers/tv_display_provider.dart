@@ -29,6 +29,7 @@ class TVDisplayProvider extends ChangeNotifier {
 
   // Loading/Error states
   bool _isLoading = false;
+  bool _isInitializing = false;
   String? _error;
 
   // Progress tracking
@@ -65,6 +66,13 @@ class TVDisplayProvider extends ChangeNotifier {
 
   /// Initialize the provider - load saved player and connect
   Future<void> initialize() async {
+    // Guard against concurrent initialization
+    if (_isInitializing) {
+      print('[TVDisplayProvider] Already initializing, skipping');
+      return;
+    }
+
+    _isInitializing = true;
     _setLoading(true);
     _clearError();
 
@@ -130,9 +138,9 @@ class TVDisplayProvider extends ChangeNotifier {
       // Connect to Music Assistant
       await _api!.connect();
     } catch (e) {
-    } catch (e) {
       _setError('Failed to initialize: $e');
     } finally {
+      _isInitializing = false;
       _setLoading(false);
     }
   }
