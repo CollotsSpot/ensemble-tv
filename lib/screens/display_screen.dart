@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/media_item.dart';
@@ -18,29 +19,8 @@ class DisplayScreen extends StatefulWidget {
 }
 
 class _DisplayScreenState extends State<DisplayScreen> {
-  /// Get album art URL from track metadata
-  String? _getAlbumArtUrl(Track? track) {
-    if (track == null) return null;
+  Timer? _progressTimer;
 
-    // Try to get image from metadata
-    final metadata = track.metadata;
-    if (metadata != null) {
-      final image = metadata['image'] as Map<String, dynamic>?;
-      if (image != null) {
-        return image['url'] as String?;
-      }
-    }
-
-    // Try album's image
-    if (track.album?.metadata != null) {
-      final albumImage = track.album!.metadata!['image'] as Map<String, dynamic>?;
-      if (albumImage != null) {
-        return albumImage['url'] as String?;
-      }
-    }
-
-    return null;
-  }
   @override
   void initState() {
     super.initState();
@@ -48,6 +28,20 @@ class _DisplayScreenState extends State<DisplayScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TVDisplayProvider>().initialize();
     });
+
+    // Start progress update timer - update every second
+    _progressTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      final provider = context.read<TVDisplayProvider>();
+      if (provider.currentPlayer?.isPlaying == true) {
+        provider.updateProgress();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _progressTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -157,7 +151,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
                 Expanded(
                   flex: 1,
                   child: TVAlbumArt(
-                    imageUrl: _getAlbumArtUrl(currentTrack),
+                    imageUrl: provider.albumArtUrl,
                     backgroundColor: provider.dominantColor,
                   ),
                 ),

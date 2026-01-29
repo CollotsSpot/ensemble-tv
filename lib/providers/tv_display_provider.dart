@@ -25,6 +25,7 @@ class TVDisplayProvider extends ChangeNotifier {
   Track? _currentTrack;
   List<Player> _availablePlayers = [];
   Color? _dominantColor;
+  String? _albumArtUrl;
 
   // Loading/Error states
   bool _isLoading = false;
@@ -46,6 +47,21 @@ class TVDisplayProvider extends ChangeNotifier {
   double get progress => _progress;
   Duration? get duration => _duration;
   Duration? get currentTime => _currentTime;
+  MusicAssistantAPI? get api => _api;
+  String? get albumArtUrl => _albumArtUrl;
+
+  /// Update progress based on current player state
+  void updateProgress() {
+    if (_currentPlayer == null || _duration == null) return;
+
+    // Calculate progress based on elapsed time and duration
+    final elapsed = _currentPlayer!.currentElapsedTime;
+    if (elapsed != null && _duration != null) {
+      _currentTime = Duration(seconds: elapsed.round());
+      _progress = _currentTime!.inMilliseconds / _duration!.inMilliseconds;
+      notifyListeners();
+    }
+  }
 
   /// Initialize the provider - load saved player and connect
   Future<void> initialize() async {
@@ -92,7 +108,20 @@ class TVDisplayProvider extends ChangeNotifier {
       _connectionStateSubscription = _api!.connectionState.listen((state) {
         print('[TVDisplayProvider] Connection state changed: $state');
         if (state == MAConnectionState.authenticated) {
+          print('[TVDisplayProvider] Authenticated - calling _onConnected()');
           _onConnected();
+        } else if (state == MAConnectionState.connected) {
+          // Connected but may need auth or may already be authenticated
+          print('[TVDisplayProvider] Connected - isAuthenticated: ${_api!.isAuthenticated}, authRequired: ${_api!.authRequired}');
+          if (_api!.isAuthenticated || !_api!.authRequired) {
+            // Already authenticated or no auth needed
+            print('[TVDisplayProvider] No auth needed - calling _onConnected()');
+            _onConnected();
+          } else {
+            // Authentication required - trigger it
+            print('[TVDisplayProvider] Authentication required - triggering auth...');
+            _handleAuthentication();
+          }
         } else if (state == MAConnectionState.error) {
           _setError('Connection error');
         }
@@ -100,14 +129,7 @@ class TVDisplayProvider extends ChangeNotifier {
 
       // Connect to Music Assistant
       await _api!.connect();
-
-      // If no saved player, load players for selection
-      if (_selectedPlayerId == null) {
-        await loadPlayers();
-      } else {
-        // Subscribe to selected player updates
-        await _subscribeToPlayer();
-      }
+    } catch (e) {
     } catch (e) {
       _setError('Failed to initialize: $e');
     } finally {
@@ -202,8 +224,16 @@ class TVDisplayProvider extends ChangeNotifier {
 
     if (playerId != _selectedPlayerId) return;
 
+    final oldItemId = _currentPlayer?.currentItemId;
     // Update player state
     _currentPlayer = Player.fromJson(data);
+    final newItemId = _currentPlayer!.currentItemId;
+
+    // Check if track changed
+    if (oldItemId != newItemId && newItemId != null) {
+      // Track changed - reload track info
+      _loadCurrentTrack();
+    }
 
     // Update progress
     if (_currentPlayer!.elapsedTime != null && _duration != null) {
@@ -226,9 +256,9 @@ class TVDisplayProvider extends ChangeNotifier {
         _currentTrack = item.track;
 
         // Get album art URL and extract dominant color
-        final imageUrl = _getAlbumArtUrl(_currentTrack);
-        if (imageUrl != null) {
-          _extractAlbumColor(imageUrl);
+        _albumArtUrl = _getAlbumArtUrl(_currentTrack);
+        if (_albumArtUrl != null) {
+          _extractAlbumColor(_albumArtUrl!);
         }
 
         // Update duration
@@ -245,9 +275,17 @@ class TVDisplayProvider extends ChangeNotifier {
 
   /// Get album art URL from track
   String? _getAlbumArtUrl(Track? track) {
-    if (track == null) return null;
+    if (track == null || _api == null) return null;
 
-    // Try to get image from metadata
+    // Use the API's getImageUrl method for proper authentication
+    try {
+      final imageUrl = _api!.getImageUrl(track, size: 512);
+      if (imageUrl != null) return imageUrl;
+    } catch (e) {
+      // Fall through to manual extraction
+    }
+
+    // Fallback: Try to get image from metadata
     final metadata = track.metadata;
     if (metadata != null) {
       final image = metadata['image'] as Map<String, dynamic>?;
@@ -318,6 +356,36 @@ class TVDisplayProvider extends ChangeNotifier {
       await _api!.previousTrack(_currentPlayer!.playerId);
     } catch (e) {
       _setError('Failed to go to previous track: $e');
+    }
+  }
+
+  /// Handle authentication after WebSocket connection
+  Future<void> _handleAuthentication() async {
+    if (_authManager == null || _api == null) {
+      print('[TVDisplayProvider] AuthManager or API is null, cannot authenticate');
+      _setError('Authentication failed');
+      return;
+    }
+
+    final token = _authManager!.token;
+    if (token == null || token.isEmpty) {
+      print('[TVDisplayProvider] No token available for authentication');
+      _setError('No authentication token found. Please login again.');
+      return;
+    }
+
+    try {
+      print('[TVDisplayProvider] Authenticating with token...');
+      final success = await _api!.authenticateWithToken(token);
+      if (success) {
+        print('[TVDisplayProvider] Authentication successful');
+      } else {
+        print('[TVDisplayProvider] Authentication failed - token may be invalid');
+        _setError('Authentication failed. Please login again.');
+      }
+    } catch (e) {
+      print('[TVDisplayProvider] Authentication error: $e');
+      _setError('Authentication error: $e');
     }
   }
 

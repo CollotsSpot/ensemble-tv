@@ -11,6 +11,7 @@ import '../models/player.dart';
 import '../models/provider_instance.dart';
 import '../models/provider_manifest.dart';
 import 'debug_logger.dart';
+import 'tv_logger.dart';
 import 'settings_service.dart';
 import 'device_id_service.dart';
 import 'retry_helper.dart';
@@ -31,6 +32,7 @@ class MusicAssistantAPI {
   WebSocketChannel? _channel;
   final _uuid = const Uuid();
   final _logger = DebugLogger();
+  final _tvLogger = TVLogger();
 
   final _connectionStateController = StreamController<MAConnectionState>.broadcast();
   Stream<MAConnectionState> get connectionState => _connectionStateController.stream;
@@ -103,7 +105,7 @@ class MusicAssistantAPI {
 
       // Parse server URL and construct WebSocket URL
       var wsUrl = serverUrl;
-      var useSecure = true; // Default to secure connection
+      var useSecure = false; // Default to unsecure for local servers
 
       _logger.log('Original server URL: $serverUrl');
 
@@ -116,9 +118,20 @@ class MusicAssistantAPI {
           wsUrl = wsUrl.replaceFirst('http://', 'ws://');
           useSecure = false;
         } else {
-          // Default to secure WebSocket for plain domains
-          wsUrl = 'wss://$wsUrl';
-          useSecure = true;
+          // For plain domains without protocol, check if it's a local IP
+          final uri = Uri.parse(wsUrl.contains('://') ? wsUrl : 'http://$wsUrl');
+          final isLocalIp = _isLocalNetworkHost(uri.host);
+
+          // Use ws:// for local IPs, wss:// for remote servers
+          if (isLocalIp) {
+            wsUrl = 'ws://$wsUrl';
+            useSecure = false;
+            _logger.log('Local IP detected, using unsecure connection');
+          } else {
+            wsUrl = 'wss://$wsUrl';
+            useSecure = true;
+            _logger.log('Remote server detected, using secure connection');
+          }
         }
       } else {
         useSecure = wsUrl.startsWith('wss://');
@@ -184,6 +197,7 @@ class MusicAssistantAPI {
 
       _logger.log('Attempting ${useSecure ? "secure (WSS)" : "unsecure (WS)"} connection');
       _logger.log('Final WebSocket URL: $wsUrl');
+      _tvLogger.log('Connecting to WebSocket: $wsUrl');
       print('[MusicAssistantAPI] Connecting to: $wsUrl');
 
       // Get authentication headers from AuthManager
@@ -212,11 +226,13 @@ class MusicAssistantAPI {
         _handleMessage,
         onError: (error) {
           _logger.log('WebSocket error: $error');
+          _tvLogger.error('WebSocket error: $error');
           _updateConnectionState(MAConnectionState.error);
           _reconnect();
         },
         onDone: () {
           _logger.log('WebSocket connection closed');
+          _tvLogger.warning('WebSocket connection closed');
           _updateConnectionState(MAConnectionState.disconnected);
           if (_connectionCompleter != null && !_connectionCompleter!.isCompleted) {
             _connectionCompleter!.completeError(Exception('Connection closed'));
@@ -229,17 +245,20 @@ class MusicAssistantAPI {
       await _connectionCompleter!.future.timeout(
         Timings.connectionTimeout,
         onTimeout: () {
+          _tvLogger.error('Connection timeout - no server info received');
           throw Exception('Connection timeout - no server info received');
         },
       );
 
       _logger.log('Connection: Connected to server');
+      _tvLogger.log('Connected to Music Assistant server');
       if (_connectionInProgress != null && !_connectionInProgress!.isCompleted) {
         _connectionInProgress!.complete();
       }
       _connectionInProgress = null;
     } catch (e) {
       _logger.log('Connection: Failed - $e');
+      _tvLogger.error('Connection failed: $e');
       _updateConnectionState(MAConnectionState.error);
       if (_connectionInProgress != null && !_connectionInProgress!.isCompleted) {
         _connectionInProgress!.completeError(e);
@@ -3667,5 +3686,20 @@ class MusicAssistantAPI {
       stream.close();
     }
     _eventStreams.clear();
+  }
+
+  /// Check if a hostname is a local/private network address
+  bool _isLocalNetworkHost(String host) {
+    return host.startsWith('192.168.') ||
+        host.startsWith('10.') ||
+        host.startsWith('172.16.') ||
+        host.startsWith('172.17.') ||
+        host.startsWith('172.18.') ||
+        host.startsWith('172.19.') ||
+        host.startsWith('172.2') ||
+        host.startsWith('172.30.') ||
+        host.startsWith('172.31.') ||
+        host == 'localhost' ||
+        host.startsWith('127.');
   }
 }
