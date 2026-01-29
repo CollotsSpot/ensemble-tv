@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/media_item.dart';
 import '../providers/tv_display_provider.dart';
 import '../widgets/tv_album_art.dart';
 import '../widgets/tv_track_info.dart';
@@ -16,6 +17,29 @@ class DisplayScreen extends StatefulWidget {
 }
 
 class _DisplayScreenState extends State<DisplayScreen> {
+  /// Get album art URL from track metadata
+  String? _getAlbumArtUrl(Track? track) {
+    if (track == null) return null;
+
+    // Try to get image from metadata
+    final metadata = track.metadata;
+    if (metadata != null) {
+      final image = metadata['image'] as Map<String, dynamic>?;
+      if (image != null) {
+        return image['url'] as String?;
+      }
+    }
+
+    // Try album's image
+    if (track.album?.metadata != null) {
+      final albumImage = track.album!.metadata!['image'] as Map<String, dynamic>?;
+      if (albumImage != null) {
+        return albumImage['url'] as String?;
+      }
+    }
+
+    return null;
+  }
   @override
   void initState() {
     super.initState();
@@ -111,7 +135,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
                 Expanded(
                   flex: 1,
                   child: TVAlbumArt(
-                    imageUrl: currentTrack?.image?.url,
+                    imageUrl: _getAlbumArtUrl(currentTrack),
                     backgroundColor: provider.dominantColor,
                   ),
                 ),
@@ -128,7 +152,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
                         if (currentTrack != null) ...[
                           TVTrackInfo(
                             title: currentTrack.name,
-                            artist: currentTrack.artist?.name ?? 'Unknown Artist',
+                            artist: currentTrack.artistsString,
                             album: currentTrack.album?.name ?? '',
                             playerName: currentPlayer?.name ?? 'Unknown Player',
                             isPlaying: currentPlayer?.isPlaying ?? false,

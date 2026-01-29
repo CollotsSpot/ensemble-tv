@@ -2,12 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:palette_generator/palette_generator.dart';
-import '../constants/network.dart';
 import '../models/media_item.dart';
 import '../models/player.dart';
 import '../services/music_assistant_api.dart';
 import '../services/auth/auth_manager.dart';
-import '../theme/palette_helper.dart';
 
 /// Provider for TV display state.
 /// Manages connection to Music Assistant, player selection, and current track display.
@@ -132,7 +130,7 @@ class TVDisplayProvider extends ChangeNotifier {
 
     try {
       // Subscribe to player update events
-      _playerUpdateSubscription = _api!.playerUpdates(_selectedPlayerId!).listen(_onPlayerUpdate);
+      _playerUpdateSubscription = _api!.playerUpdatedEvents.listen(_onPlayerUpdate);
 
       // Get current player state
       final players = await _api!.getPlayers();
@@ -160,27 +158,12 @@ class TVDisplayProvider extends ChangeNotifier {
 
   /// Handle player update events from Music Assistant
   void _onPlayerUpdate(Map<String, dynamic> data) {
-    final eventType = data['event_type'] as String?;
     final playerId = data['player_id'] as String?;
 
     if (playerId != _selectedPlayerId) return;
 
-    switch (eventType) {
-      case 'player_update':
-        _updatePlayerState(data);
-        break;
-      case 'queue_update':
-        _loadCurrentTrack();
-        break;
-    }
-  }
-
-  /// Update player state from event
-  void _updatePlayerState(Map<String, dynamic> data) {
-    final playerData = data['data'] as Map<String, dynamic>?;
-    if (playerData == null) return;
-
-    _currentPlayer = Player.fromJson(playerData);
+    // Update player state
+    _currentPlayer = Player.fromJson(data);
 
     // Update progress
     if (_currentPlayer!.elapsedTime != null && _duration != null) {
@@ -196,27 +179,52 @@ class TVDisplayProvider extends ChangeNotifier {
     if (_api == null || _currentPlayer == null) return;
 
     try {
-      final queue = await _api!.getPlayerQueue(_currentPlayer!.playerId);
-      final item = queue.currentItem;
+      final queue = await _api!.getQueue(_currentPlayer!.playerId);
+      final item = queue?.currentItem;
 
       if (item != null && item.track != _currentTrack) {
         _currentTrack = item.track;
 
-        // Extract dominant color from album art
-        if (_currentTrack!.image?.url != null) {
-          _extractAlbumColor(_currentTrack!.image!.url);
+        // Get album art URL and extract dominant color
+        final imageUrl = _getAlbumArtUrl(_currentTrack);
+        if (imageUrl != null) {
+          _extractAlbumColor(imageUrl);
         }
 
         // Update duration
         if (item.track.duration != null) {
-          _duration = Duration(seconds: item.track.duration!.round());
+          _duration = item.track.duration;
         }
 
         notifyListeners();
       }
     } catch (e) {
-      print('Failed to load current track: $e');
+      // Ignore errors loading track
     }
+  }
+
+  /// Get album art URL from track
+  String? _getAlbumArtUrl(Track? track) {
+    if (track == null) return null;
+
+    // Try to get image from metadata
+    final metadata = track.metadata;
+    if (metadata != null) {
+      final image = metadata['image'] as Map<String, dynamic>?;
+      if (image != null) {
+        return image['url'] as String?;
+      }
+    }
+
+    // Try album's image
+    if (track.album?.metadata != null) {
+      final albumImage = track.album!.metadata!['image'] as Map<String, dynamic>?;
+      if (albumImage != null) {
+        return albumImage['url'] as String?;
+      }
+    }
+
+    return null;
   }
 
   /// Extract dominant color from album art
@@ -232,18 +240,20 @@ class TVDisplayProvider extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('Failed to extract color: $e');
+      // Ignore color extraction errors
     }
   }
 
   /// Send play/pause command to selected player
   Future<void> togglePlayPause() async {
-    if (_api == null || _selectedPlayerId == null) return;
+    if (_api == null || _currentPlayer == null) return;
 
     try {
-      await _api!.sendPlayerCommand(_selectedPlayerId!, {
-        'command': 'play_pause',
-      });
+      if (_currentPlayer!.isPlaying) {
+        await _api!.pausePlayer(_currentPlayer!.playerId);
+      } else {
+        await _api!.resumePlayer(_currentPlayer!.playerId);
+      }
     } catch (e) {
       _setError('Failed to toggle play/pause: $e');
     }
@@ -251,12 +261,10 @@ class TVDisplayProvider extends ChangeNotifier {
 
   /// Send next track command
   Future<void> nextTrack() async {
-    if (_api == null || _selectedPlayerId == null) return;
+    if (_api == null || _currentPlayer == null) return;
 
     try {
-      await _api!.sendPlayerCommand(_selectedPlayerId!, {
-        'command': 'next',
-      });
+      await _api!.nextTrack(_currentPlayer!.playerId);
     } catch (e) {
       _setError('Failed to skip to next track: $e');
     }
@@ -264,12 +272,10 @@ class TVDisplayProvider extends ChangeNotifier {
 
   /// Send previous track command
   Future<void> previousTrack() async {
-    if (_api == null || _selectedPlayerId == null) return;
+    if (_api == null || _currentPlayer == null) return;
 
     try {
-      await _api!.sendPlayerCommand(_selectedPlayerId!, {
-        'command': 'previous',
-      });
+      await _api!.previousTrack(_currentPlayer!.playerId);
     } catch (e) {
       _setError('Failed to go to previous track: $e');
     }
