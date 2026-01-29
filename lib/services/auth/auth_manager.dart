@@ -51,8 +51,8 @@ class AuthManager {
           return null;
         }
 
-        final result = data['result'] as Map<String, dynamic>?;
-        _accessToken = result?['access_token'] as String?;
+        // MA API returns access_token at root level, not in result object
+        _accessToken = data['access_token'] as String?;
 
         if (_accessToken != null) {
           _logger.log('✓ Got access token from MA');

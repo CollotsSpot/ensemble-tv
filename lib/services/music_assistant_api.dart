@@ -184,9 +184,12 @@ class MusicAssistantAPI {
 
       _logger.log('Attempting ${useSecure ? "secure (WSS)" : "unsecure (WS)"} connection');
       _logger.log('Final WebSocket URL: $wsUrl');
+      print('[MusicAssistantAPI] Connecting to: $wsUrl');
 
       // Get authentication headers from AuthManager
       final headers = authManager.getWebSocketHeaders();
+
+      print('[MusicAssistantAPI] Headers: $headers');
 
       if (headers.isNotEmpty) {
         _logger.log('Connection: Using authentication');

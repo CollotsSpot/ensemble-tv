@@ -5,6 +5,7 @@ import '../providers/tv_display_provider.dart';
 import '../widgets/tv_album_art.dart';
 import '../widgets/tv_track_info.dart';
 import '../widgets/tv_progress_bar.dart';
+import 'debug_logs_screen.dart';
 
 /// Main display screen for Ensemble TV.
 /// Shows album art and track info for the selected player.
@@ -104,20 +105,41 @@ class _DisplayScreenState extends State<DisplayScreen> {
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 40),
-                    ElevatedButton(
-                      onPressed: () => provider.initialize(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 40,
-                          vertical: 20,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () => DebugLogsScreen.show(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white24,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 20,
+                            ),
+                          ),
+                          child: const Text(
+                            'View Logs',
+                            style: TextStyle(fontSize: 24),
+                          ),
                         ),
-                      ),
-                      child: const Text(
-                        'Retry',
-                        style: TextStyle(fontSize: 24),
-                      ),
+                        const SizedBox(width: 20),
+                        ElevatedButton(
+                          onPressed: () => provider.initialize(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 40,
+                              vertical: 20,
+                            ),
+                          ),
+                          child: const Text(
+                            'Retry',
+                            style: TextStyle(fontSize: 24),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

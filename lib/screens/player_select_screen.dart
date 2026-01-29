@@ -4,6 +4,7 @@ import '../models/player.dart';
 import '../providers/tv_display_provider.dart';
 import '../services/settings_service.dart';
 import 'settings_screen.dart';
+import 'debug_logs_screen.dart';
 
 /// Screen for selecting a player to control on first launch.
 /// Shows a list of available Music Assistant players.
@@ -155,22 +156,45 @@ class _PlayerSelectScreenState extends State<PlayerSelectScreen> {
             ),
           ),
           const SizedBox(height: 40),
-          ElevatedButton(
-            onPressed: () {
-              context.read<TVDisplayProvider>().loadPlayers();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.black,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 40,
-                vertical: 20,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: () {
+                  DebugLogsScreen.show(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white24,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 20,
+                  ),
+                ),
+                child: const Text(
+                  'View Logs',
+                  style: TextStyle(fontSize: 24),
+                ),
               ),
-            ),
-            child: const Text(
-              'Retry',
-              style: TextStyle(fontSize: 24),
-            ),
+              const SizedBox(width: 20),
+              ElevatedButton(
+                onPressed: () {
+                  context.read<TVDisplayProvider>().loadPlayers();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 40,
+                    vertical: 20,
+                  ),
+                ),
+                child: const Text(
+                  'Retry',
+                  style: TextStyle(fontSize: 24),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -252,22 +276,45 @@ class _PlayerSelectScreenState extends State<PlayerSelectScreen> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 40),
-          ElevatedButton(
-            onPressed: () {
-              context.read<TVDisplayProvider>().loadPlayers();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.black,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 40,
-                vertical: 20,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: () {
+                  DebugLogsScreen.show(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white24,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 20,
+                  ),
+                ),
+                child: const Text(
+                  'View Logs',
+                  style: TextStyle(fontSize: 24),
+                ),
               ),
-            ),
-            child: const Text(
-              'Retry',
-              style: TextStyle(fontSize: 24),
-            ),
+              const SizedBox(width: 20),
+              ElevatedButton(
+                onPressed: () {
+                  context.read<TVDisplayProvider>().loadPlayers();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 40,
+                    vertical: 20,
+                  ),
+                ),
+                child: const Text(
+                  'Retry',
+                  style: TextStyle(fontSize: 24),
+                ),
+              ),
+            ],
           ),
         ],
       ),

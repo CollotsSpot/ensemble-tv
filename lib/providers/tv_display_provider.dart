@@ -71,14 +71,26 @@ class TVDisplayProvider extends ChangeNotifier {
       // Load saved token
       final token = await SettingsService.getToken();
       if (token != null && token.isNotEmpty && _authManager != null) {
+        print('[TVDisplayProvider] Loaded token from storage: ${token.substring(0, 10)}...');
         _authManager!.setToken(token);
+      } else {
+        print('[TVDisplayProvider] No token found in storage (token=$token)');
       }
+
+      // Dispose old API connection if exists
+      _api?.dispose();
+      _connectionStateSubscription?.cancel();
 
       // Initialize API
       _api = MusicAssistantAPI(serverUrl, _authManager!);
 
+      // Log token status before connecting
+      print('[TVDisplayProvider] AuthManager hasCredentials: ${_authManager!.hasCredentials}');
+      print('[TVDisplayProvider] AuthManager token: ${_authManager!.token?.substring(0, 10) ?? "null"}...');
+
       // Listen to connection state
       _connectionStateSubscription = _api!.connectionState.listen((state) {
+        print('[TVDisplayProvider] Connection state changed: $state');
         if (state == MAConnectionState.authenticated) {
           _onConnected();
         } else if (state == MAConnectionState.error) {
