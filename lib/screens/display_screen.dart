@@ -170,7 +170,6 @@ class _DisplayScreenState extends State<DisplayScreen> {
                             title: currentTrack.name,
                             artist: currentTrack.artistsString,
                             album: currentTrack.album?.name ?? '',
-                            playerName: currentPlayer?.name ?? 'Unknown Player',
                             isPlaying: currentPlayer?.isPlaying ?? false,
                             textColor: provider.dominantColor ?? Colors.white,
                           ),
@@ -208,14 +207,6 @@ class _DisplayScreenState extends State<DisplayScreen> {
                             ),
                           ),
                         ],
-                        const SizedBox(height: 60),
-                        const Text(
-                          'Press Menu for options',
-                          style: TextStyle(
-                            fontSize: 20,
-                            color: Colors.grey,
-                          ),
-                        ),
                       ],
                     ),
                   ),

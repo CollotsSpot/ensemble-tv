@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
 /// Track information display for TV.
-/// Shows title, artist, album, and player name with extracted colors.
+/// Shows title, artist, and album with extracted colors.
 class TVTrackInfo extends StatelessWidget {
   final String title;
   final String artist;
   final String album;
-  final String playerName;
+  final String? playerName; // Optional - if null/empty, player name is hidden
   final bool isPlaying;
   final Color textColor;
 
@@ -15,7 +15,7 @@ class TVTrackInfo extends StatelessWidget {
     required this.title,
     required this.artist,
     required this.album,
-    required this.playerName,
+    this.playerName, // Optional
     required this.isPlaying,
     required this.textColor,
   });
@@ -64,29 +64,30 @@ class TVTrackInfo extends StatelessWidget {
           const SizedBox(height: 16),
         ],
 
-        // Player name with playing indicator
-        Row(
-          children: [
-            if (isPlaying)
-              Container(
-                width: 12,
-                height: 12,
-                margin: const EdgeInsets.only(right: 12),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: textColor,
+        // Player name with playing indicator (only show if playerName provided)
+        if (playerName != null && playerName!.isNotEmpty)
+          Row(
+            children: [
+              if (isPlaying)
+                Container(
+                  width: 12,
+                  height: 12,
+                  margin: const EdgeInsets.only(right: 12),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: textColor,
+                  ),
+                ),
+              Text(
+                playerName!,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w500,
+                  color: textColor.withOpacity(0.9),
                 ),
               ),
-            Text(
-              playerName,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w500,
-                color: textColor.withOpacity(0.9),
-              ),
-            ),
-          ],
-        ),
+            ],
+          ),
       ],
     );
   }
