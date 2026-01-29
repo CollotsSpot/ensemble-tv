@@ -21,6 +21,16 @@ class SettingsService {
     await _secureStorage.write(key: 'auth_token', value: token);
   }
 
+  static Future<String?> getUsername() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('username');
+  }
+
+  static Future<void> setUsername(String username) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('username', username);
+  }
+
   static Future<int?> getWebSocketPort() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt('ws_port');

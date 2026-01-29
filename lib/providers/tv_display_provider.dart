@@ -68,6 +68,12 @@ class TVDisplayProvider extends ChangeNotifier {
         return;
       }
 
+      // Load saved token
+      final token = await SettingsService.getToken();
+      if (token != null && token.isNotEmpty && _authManager != null) {
+        _authManager!.setToken(token);
+      }
+
       // Initialize API
       _api = MusicAssistantAPI(serverUrl, _authManager!);
 
