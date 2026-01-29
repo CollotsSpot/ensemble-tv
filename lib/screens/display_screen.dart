@@ -144,21 +144,24 @@ class _DisplayScreenState extends State<DisplayScreen> {
             final currentTrack = provider.currentTrack;
             final currentPlayer = provider.currentPlayer;
 
+            // Calculate album art size (1:1 square, full height)
+            final size = MediaQuery.of(context).size.height;
+
             // Show display screen
             return Row(
               children: [
-                // Left side: Album art (full height)
-                Expanded(
-                  flex: 1,
+                // Left side: 1:1 square album art
+                SizedBox(
+                  width: size,
+                  height: size,
                   child: TVAlbumArt(
                     imageUrl: provider.albumArtUrl,
                     backgroundColor: provider.dominantColor,
                   ),
                 ),
 
-                // Right side: Track info and progress
+                // Right side: Track info and progress (remaining space)
                 Expanded(
-                  flex: 1,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 60),
                     child: Column(
@@ -171,23 +174,23 @@ class _DisplayScreenState extends State<DisplayScreen> {
                             artist: currentTrack.artistsString,
                             album: currentTrack.album?.name ?? '',
                             isPlaying: currentPlayer?.isPlaying ?? false,
-                            textColor: provider.dominantColor ?? Colors.white,
+                            textColor: Colors.white, // Always use white for better visibility
                           ),
                           const SizedBox(height: 40),
                           TVProgressBar(
                             progress: provider.progress,
                             duration: provider.duration,
                             currentTime: provider.currentTime,
-                            textColor: provider.dominantColor ?? Colors.white,
+                            textColor: Colors.white, // Always use white for better visibility
                           ),
                         ] else ...[
                           // Idle state - no track playing
                           Text(
                             currentPlayer?.name ?? 'Unknown Player',
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 48,
                               fontWeight: FontWeight.bold,
-                              color: provider.dominantColor ?? Colors.white,
+                              color: Colors.white,
                             ),
                           ),
                           const SizedBox(height: 20),
