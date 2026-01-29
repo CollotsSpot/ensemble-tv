@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../tv_logger.dart';
 import '../debug_logger.dart';
 
 /// Simple authentication manager for Music Assistant
 /// MA now uses its own built-in authentication system
 class AuthManager {
   final _logger = DebugLogger();
+  final _tvLogger = TVLogger();
 
   String? _accessToken;
   String? _longLivedToken;
@@ -21,6 +23,7 @@ class AuthManager {
     try {
       final apiUrl = _buildApiUrl(serverUrl);
       _logger.log('🔐 Logging in to Music Assistant at $apiUrl');
+      _tvLogger.log('Logging in to Music Assistant at $apiUrl');
 
       final response = await http.post(
         apiUrl,
@@ -35,12 +38,14 @@ class AuthManager {
       ).timeout(const Duration(seconds: 10));
 
       _logger.log('Auth response status: ${response.statusCode}');
+      _tvLogger.log('Auth response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
 
         if (data.containsKey('error_code')) {
           _logger.log('✗ Login failed: ${data['error_code']} - ${data['details']}');
+          _tvLogger.error('Login failed: ${data['error_code']} - ${data['details']}');
           return null;
         }
 
@@ -49,6 +54,7 @@ class AuthManager {
 
         if (_accessToken != null) {
           _logger.log('✓ Got access token from MA');
+          _tvLogger.log('Got access token from MA');
 
           // Try to create a long-lived token
           _longLivedToken = await _createLongLivedToken(apiUrl, _accessToken!);
@@ -57,13 +63,16 @@ class AuthManager {
         }
 
         _logger.log('✗ No access token in response');
+        _tvLogger.error('No access token in response');
         return null;
       }
 
       _logger.log('✗ Authentication failed: ${response.statusCode}');
+      _tvLogger.error('Authentication failed: Status ${response.statusCode}');
       return null;
     } catch (e) {
       _logger.log('✗ Login error: $e');
+      _tvLogger.error('Login error', e);
       return null;
     }
   }
@@ -72,6 +81,7 @@ class AuthManager {
   Future<String?> _createLongLivedToken(Uri apiUrl, String accessToken) async {
     try {
       _logger.log('Creating long-lived token...');
+      _tvLogger.log('Creating long-lived token...');
 
       final response = await http.post(
         apiUrl,
@@ -96,15 +106,18 @@ class AuthManager {
 
           if (token != null) {
             _logger.log('✓ Created long-lived token');
+            _tvLogger.log('Created long-lived token');
             return token;
           }
         }
       }
 
       _logger.log('⚠️ Could not create long-lived token (non-fatal)');
+      _tvLogger.warning('Could not create long-lived token (non-fatal)');
       return null;
     } catch (e) {
       _logger.log('⚠️ Long-lived token creation failed: $e (non-fatal)');
+      _tvLogger.warning('Long-lived token creation failed: $e (non-fatal)');
       return null;
     }
   }
@@ -129,13 +142,16 @@ class AuthManager {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         if (!data.containsKey('error_code')) {
           _longLivedToken = storedToken;
+          _tvLogger.log('Token validated successfully');
           return true;
         }
       }
 
+      _tvLogger.warning('Token validation failed');
       return false;
     } catch (e) {
       _logger.log('Token validation failed: $e');
+      _tvLogger.error('Token validation failed', e);
       return false;
     }
   }

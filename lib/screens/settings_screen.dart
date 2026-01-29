@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/settings_service.dart';
 import '../services/auth/auth_manager.dart';
+import 'debug_logs_screen.dart';
 
 /// Settings screen for TV app.
 /// Allows configuration of Music Assistant server URL and credentials.
@@ -274,6 +275,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           style: const TextStyle(
                             fontSize: 20,
                             color: Colors.red,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: () {
+                            DebugLogsScreen.show(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white24,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text(
+                            'View Logs',
+                            style: TextStyle(fontSize: 20),
                           ),
                         ),
                       ],
