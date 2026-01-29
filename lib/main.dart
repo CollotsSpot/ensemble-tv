@@ -4,6 +4,7 @@ import 'providers/tv_display_provider.dart';
 import 'services/key_event_handler.dart';
 import 'screens/player_select_screen.dart';
 import 'screens/display_screen.dart';
+import 'widgets/tv_menu_dialog.dart';
 
 void main() {
   runApp(const EnsembleTVApp());
@@ -19,6 +20,7 @@ class EnsembleTVApp extends StatefulWidget {
 class _EnsembleTVAppState extends State<EnsembleTVApp> {
   late final TVRemoteHandler _remoteHandler;
   final TVDisplayProvider _displayProvider = TVDisplayProvider();
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   void initState() {
@@ -53,11 +55,10 @@ class _EnsembleTVAppState extends State<EnsembleTVApp> {
   }
 
   void _showMenu() {
-    // TODO: Show menu dialog with options:
-    // - Change Player
-    // - Settings
-    // - Exit
-    print('Menu pressed - show options');
+    final context = _navigatorKey.currentContext;
+    if (context != null) {
+      TVMenuDialog.show(context);
+    }
   }
 
   @override
@@ -73,6 +74,7 @@ class _EnsembleTVAppState extends State<EnsembleTVApp> {
       value: _displayProvider,
       child: MaterialApp(
         title: 'Ensemble TV',
+        navigatorKey: _navigatorKey,
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
@@ -92,7 +94,7 @@ class _AppRouter extends StatelessWidget {
     return Consumer<TVDisplayProvider>(
       builder: (context, provider, child) {
         // If no player selected, show player selection screen
-        if (provider.selectedPlayerId == null) {
+        if (provider.selectedPlayerId == null || provider.selectedPlayerId!.isEmpty) {
           return const PlayerSelectScreen();
         }
 

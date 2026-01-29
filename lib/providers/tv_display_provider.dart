@@ -6,6 +6,7 @@ import '../models/media_item.dart';
 import '../models/player.dart';
 import '../services/music_assistant_api.dart';
 import '../services/auth/auth_manager.dart';
+import '../services/settings_service.dart';
 
 /// Provider for TV display state.
 /// Manages connection to Music Assistant, player selection, and current track display.
@@ -59,8 +60,13 @@ class TVDisplayProvider extends ChangeNotifier {
       // Initialize auth manager
       _authManager = AuthManager();
 
-      // TODO: Load server URL from settings
-      final serverUrl = 'your-ma-server.com'; // Placeholder
+      // Load server URL from settings
+      final serverUrl = await SettingsService.getServerUrl();
+      if (serverUrl == null || serverUrl.isEmpty) {
+        _setError('Please configure your Music Assistant server in Settings');
+        _setLoading(false);
+        return;
+      }
 
       // Initialize API
       _api = MusicAssistantAPI(serverUrl, _authManager!);
@@ -114,14 +120,30 @@ class TVDisplayProvider extends ChangeNotifier {
 
   /// Select a player to control
   Future<void> selectPlayer(String playerId) async {
-    _selectedPlayerId = playerId;
+    _selectedPlayerId = playerId.isEmpty ? null : playerId;
 
-    // Save to preferences
+    // Clear current player and track state
+    _currentPlayer = null;
+    _currentTrack = null;
+    _dominantColor = null;
+    _progress = 0.0;
+    _duration = null;
+    _currentTime = null;
+
+    // Save to preferences (or clear if empty)
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_selectedPlayerKey, playerId);
+    if (playerId.isEmpty) {
+      await prefs.remove(_selectedPlayerKey);
+    } else {
+      await prefs.setString(_selectedPlayerKey, playerId);
+    }
 
-    // Subscribe to player updates
-    await _subscribeToPlayer();
+    // Subscribe to player updates if a player was selected
+    if (_selectedPlayerId != null) {
+      await _subscribeToPlayer();
+    } else {
+      notifyListeners();
+    }
   }
 
   /// Subscribe to updates for the selected player
