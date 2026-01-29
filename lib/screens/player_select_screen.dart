@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/player.dart';
 import '../providers/tv_display_provider.dart';
+import '../services/settings_service.dart';
+import 'settings_screen.dart';
 
 /// Screen for selecting a player to control on first launch.
 /// Shows a list of available Music Assistant players.
@@ -13,23 +15,45 @@ class PlayerSelectScreen extends StatefulWidget {
 }
 
 class _PlayerSelectScreenState extends State<PlayerSelectScreen> {
+  bool _checkingServer = true;
+  String? _serverUrl;
+
   @override
   void initState() {
     super.initState();
-    // Load players when screen initializes
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<TVDisplayProvider>().loadPlayers();
-    });
+    _checkServerConfig();
+  }
+
+  Future<void> _checkServerConfig() async {
+    final url = await SettingsService.getServerUrl();
+    if (mounted) {
+      setState(() {
+        _serverUrl = url;
+        _checkingServer = false;
+      });
+
+      // Only load players if server is configured
+      if (_serverUrl != null && _serverUrl!.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          context.read<TVDisplayProvider>().initialize();
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Show configure server screen if no server URL is set
+    if (!_checkingServer && (_serverUrl == null || _serverUrl!.isEmpty)) {
+      return _buildConfigureServer(context);
+    }
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
         child: Consumer<TVDisplayProvider>(
           builder: (context, provider, child) {
-            if (provider.isLoading) {
+            if (_checkingServer || provider.isLoading) {
               return const Center(
                 child: CircularProgressIndicator(color: Colors.white),
               );
@@ -146,6 +170,61 @@ class _PlayerSelectScreenState extends State<PlayerSelectScreen> {
             child: const Text(
               'Retry',
               style: TextStyle(fontSize: 24),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConfigureServer(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.settings,
+            size: 80,
+            color: Colors.white,
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Welcome to Ensemble TV',
+            style: TextStyle(
+              fontSize: 42,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Configure your Music Assistant server',
+            style: TextStyle(
+              fontSize: 24,
+              color: Colors.grey,
+            ),
+          ),
+          const SizedBox(height: 40),
+          ElevatedButton(
+            onPressed: () async {
+              final result = await Navigator.of(context).push<bool>(
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              );
+              if (result == true && mounted) {
+                _checkServerConfig();
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 60,
+                vertical: 24,
+              ),
+            ),
+            child: const Text(
+              'Open Settings',
+              style: TextStyle(fontSize: 28),
             ),
           ),
         ],
