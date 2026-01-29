@@ -3233,14 +3233,27 @@ class MusicAssistantAPI {
 
     // Build the imageproxy URL
     var baseUrl = serverUrl;
-    var useSecure = true;
+    var useSecure = false; // Default to unsecure for local servers
 
     // Determine protocol
     if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
-      baseUrl = 'https://$baseUrl';
-      useSecure = true;
+      // Check if this is a local IP
+      final uri = Uri.parse('http://$baseUrl');
+      final isLocalIp = _isLocalNetworkHost(uri.host);
+
+      if (isLocalIp) {
+        // Local IP - use http with port
+        baseUrl = 'http://$baseUrl';
+        useSecure = false;
+      } else {
+        // Remote server - use https
+        baseUrl = 'https://$baseUrl';
+        useSecure = true;
+      }
     } else if (baseUrl.startsWith('http://')) {
       useSecure = false;
+    } else if (baseUrl.startsWith('https://')) {
+      useSecure = true;
     }
 
     // Add port if not specified

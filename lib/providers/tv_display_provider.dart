@@ -283,14 +283,20 @@ class TVDisplayProvider extends ChangeNotifier {
 
   /// Get album art URL from track
   String? _getAlbumArtUrl(Track? track) {
-    if (track == null || _api == null) return null;
+    if (track == null || _api == null) {
+      print('[TVDisplayProvider] _getAlbumArtUrl: track=$track, api=$_api');
+      return null;
+    }
+
+    print('[TVDisplayProvider] _getAlbumArtUrl: track has metadata=${track.metadata != null}');
 
     // Use the API's getImageUrl method for proper authentication
     try {
       final imageUrl = _api!.getImageUrl(track, size: 512);
+      print('[TVDisplayProvider] getImageUrl returned: $imageUrl');
       if (imageUrl != null) return imageUrl;
     } catch (e) {
-      // Fall through to manual extraction
+      print('[TVDisplayProvider] getImageUrl error: $e');
     }
 
     // Fallback: Try to get image from metadata
@@ -298,7 +304,9 @@ class TVDisplayProvider extends ChangeNotifier {
     if (metadata != null) {
       final image = metadata['image'] as Map<String, dynamic>?;
       if (image != null) {
-        return image['url'] as String?;
+        final url = image['url'] as String?;
+        print('[TVDisplayProvider] Using fallback image URL: $url');
+        return url;
       }
     }
 
@@ -306,10 +314,13 @@ class TVDisplayProvider extends ChangeNotifier {
     if (track.album?.metadata != null) {
       final albumImage = track.album!.metadata!['image'] as Map<String, dynamic>?;
       if (albumImage != null) {
-        return albumImage['url'] as String?;
+        final url = albumImage['url'] as String?;
+        print('[TVDisplayProvider] Using album fallback image URL: $url');
+        return url;
       }
     }
 
+    print('[TVDisplayProvider] No image URL found');
     return null;
   }
 
