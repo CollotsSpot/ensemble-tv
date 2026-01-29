@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 
 /// Track information display for TV.
-/// Shows title, artist, and album with extracted colors.
+/// Shows title, artist, and album with white text for TV.
 class TVTrackInfo extends StatelessWidget {
   final String title;
   final String artist;
   final String album;
   final String? playerName; // Optional - if null/empty, player name is hidden
   final bool isPlaying;
-  final Color textColor;
 
   const TVTrackInfo({
     super.key,
@@ -17,7 +16,6 @@ class TVTrackInfo extends StatelessWidget {
     required this.album,
     this.playerName, // Optional
     required this.isPlaying,
-    required this.textColor,
   });
 
   @override
@@ -25,38 +23,38 @@ class TVTrackInfo extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Title (largest)
+        // Title (largest) - pure white
         Text(
           title,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.bold,
-            color: textColor,
+            color: Colors.white,
           ),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 16),
 
-        // Artist
+        // Artist - white with 90% opacity
         Text(
           artist,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 24,
-            color: textColor.withOpacity(0.9),
+            color: Color(0xE6FFFFFF), // White with 90% opacity
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 8),
 
-        // Album (smaller)
+        // Album (smaller) - white with 80% opacity
         if (album.isNotEmpty) ...[
           Text(
             album,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 20,
-              color: textColor.withOpacity(0.8),
+              color: Color(0xCCFFFFFF), // White with 80% opacity
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -73,17 +71,17 @@ class TVTrackInfo extends StatelessWidget {
                   width: 12,
                   height: 12,
                   margin: const EdgeInsets.only(right: 12),
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    color: textColor,
+                    color: Colors.white,
                   ),
                 ),
               Text(
                 playerName!,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w500,
-                  color: textColor.withOpacity(0.9),
+                  color: Color(0xE6FFFFFF), // White with 90% opacity
                 ),
               ),
             ],

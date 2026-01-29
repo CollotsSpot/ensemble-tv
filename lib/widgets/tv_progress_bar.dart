@@ -6,14 +6,14 @@ class TVProgressBar extends StatelessWidget {
   final double progress; // 0.0 to 1.0
   final Duration? duration;
   final Duration? currentTime;
-  final Color textColor;
+  final Color? accentColor; // Album art dominant color for progress fill
 
   const TVProgressBar({
     super.key,
     required this.progress,
     this.duration,
     this.currentTime,
-    required this.textColor,
+    this.accentColor,
   });
 
   String _formatDuration(Duration? d) {
@@ -32,7 +32,7 @@ class TVProgressBar extends StatelessWidget {
         Container(
           height: 6,
           decoration: BoxDecoration(
-            color: textColor.withOpacity(0.3),
+            color: Colors.white.withOpacity(0.2), // Subtle background
             borderRadius: BorderRadius.circular(3),
           ),
           child: ClipRRect(
@@ -42,7 +42,7 @@ class TVProgressBar extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Container(
                 decoration: BoxDecoration(
-                  color: textColor,
+                  color: accentColor ?? Colors.white, // Use accent color or white
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
@@ -52,22 +52,22 @@ class TVProgressBar extends StatelessWidget {
 
         const SizedBox(height: 12),
 
-        // Time display
+        // Time display - always white with different opacities
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
               _formatDuration(currentTime),
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 20,
-                color: textColor.withOpacity(0.9),
+                color: Color(0xE6FFFFFF), // White with 90% opacity
               ),
             ),
             Text(
               _formatDuration(duration),
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 20,
-                color: textColor.withOpacity(0.7),
+                color: Color(0xB3FFFFFF), // White with 70% opacity
               ),
             ),
           ],

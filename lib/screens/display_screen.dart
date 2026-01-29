@@ -174,14 +174,13 @@ class _DisplayScreenState extends State<DisplayScreen> {
                             artist: currentTrack.artistsString,
                             album: currentTrack.album?.name ?? '',
                             isPlaying: currentPlayer?.isPlaying ?? false,
-                            textColor: Colors.white, // Always use white for better visibility
                           ),
                           const SizedBox(height: 40),
                           TVProgressBar(
                             progress: provider.progress,
                             duration: provider.duration,
                             currentTime: provider.currentTime,
-                            textColor: Colors.white, // Always use white for better visibility
+                            accentColor: provider.dominantColor,
                           ),
                         ] else ...[
                           // Idle state - no track playing
@@ -198,7 +197,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
                             'Ready to play',
                             style: TextStyle(
                               fontSize: 32,
-                              color: Colors.grey,
+                              color: Colors.white70,
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -206,7 +205,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
                             'Press Play on your remote to start playback',
                             style: TextStyle(
                               fontSize: 24,
-                              color: Colors.grey,
+                              color: Colors.white60,
                             ),
                           ),
                         ],
