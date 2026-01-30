@@ -33,9 +33,7 @@ class TVAlbumArt extends StatelessWidget {
           ? CachedNetworkImage(
               imageUrl: imageUrl!,
               fit: BoxFit.contain,
-              placeholder: (context, url) => const Center(
-                child: CircularProgressIndicator(color: Colors.white),
-              ),
+              placeholder: (context, url) => _buildSkeletonLoader(context),
               errorWidget: (context, url, error) => const Center(
                 child: Icon(
                   Icons.album,
@@ -51,6 +49,34 @@ class TVAlbumArt extends StatelessWidget {
                 color: Colors.white24,
               ),
             ),
+    );
+  }
+
+  Widget _buildSkeletonLoader(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 200,
+            height: 200,
+            child: CircularProgressIndicator(
+              color: backgroundColor != null
+                  ? Colors.white
+                  : Theme.of(context).colorScheme.primary,
+              strokeWidth: 3,
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Loading album art...',
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.white54,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

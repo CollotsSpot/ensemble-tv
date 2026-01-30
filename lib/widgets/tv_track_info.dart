@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 /// Track information display for TV.
-/// Shows title, artist, and album with white text for TV.
+/// Shows title, artist, and album with album art colors.
 class TVTrackInfo extends StatelessWidget {
   final String title;
   final String artist;
   final String album;
   final String? playerName; // Optional - if null/empty, player name is hidden
   final bool isPlaying;
+  final Color? accentColor; // Album art dominant color for text
 
   const TVTrackInfo({
     super.key,
@@ -16,47 +18,63 @@ class TVTrackInfo extends StatelessWidget {
     required this.album,
     this.playerName, // Optional
     required this.isPlaying,
+    this.accentColor, // Album art color for text
   });
 
   @override
   Widget build(BuildContext context) {
+    final useAccent = accentColor != null;
+    final titleColor = useAccent ? accentColor! : const Color(0xFFFFFFFF);
+    final artistColor = useAccent ? accentColor!.withOpacity(0.6) : const Color(0x99FFFFFF);
+    final albumColor = useAccent ? accentColor!.withOpacity(0.8) : const Color(0xCCFFFFFF);
+    final indicatorColor = useAccent ? accentColor! : Colors.white;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Title (largest) - pure white
+        // Title (largest) - can use multiple lines for long classical names
         Text(
           title,
-          style: const TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+          style: GoogleFonts.courierPrime(
+            textStyle: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w500,
+              color: titleColor,
+              height: 1.2,
+            ),
           ),
-          maxLines: 2,
+          maxLines: 5,
           overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 16),
 
-        // Artist - white with 90% opacity
+        // Artist - can use multiple lines
         Text(
           artist,
-          style: const TextStyle(
-            fontSize: 24,
-            color: Color(0xE6FFFFFF), // White with 90% opacity
+          style: GoogleFonts.courierPrime(
+            textStyle: TextStyle(
+              fontSize: 28,
+              color: artistColor,
+              height: 1.2,
+            ),
           ),
-          maxLines: 1,
+          maxLines: 3,
           overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 8),
 
-        // Album (smaller) - white with 80% opacity
+        // Album (smaller) - can use multiple lines
         if (album.isNotEmpty) ...[
           Text(
             album,
-            style: const TextStyle(
-              fontSize: 20,
-              color: Color(0xCCFFFFFF), // White with 80% opacity
+            style: GoogleFonts.courierPrime(
+              textStyle: TextStyle(
+                fontSize: 26,
+                color: albumColor,
+                height: 1.2,
+              ),
             ),
-            maxLines: 1,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 16),
@@ -71,17 +89,19 @@ class TVTrackInfo extends StatelessWidget {
                   width: 12,
                   height: 12,
                   margin: const EdgeInsets.only(right: 12),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white,
+                    color: indicatorColor,
                   ),
                 ),
               Text(
                 playerName!,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xE6FFFFFF), // White with 90% opacity
+                style: GoogleFonts.courierPrime(
+                  textStyle: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w500,
+                    color: artistColor,
+                  ),
                 ),
               ),
             ],

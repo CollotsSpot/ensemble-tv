@@ -41,7 +41,8 @@ class SettingsService {
     await prefs.setInt('ws_port', port);
   }
 
-  // Audiobookshelf stub methods (not used in TV app)
+  // Audiobookshelf stub methods (not used in TV app, but referenced by music_assistant_api.dart)
+  // These return empty/default values since the TV app doesn't use Audiobookshelf features
   static Future<List<String>> getEnabledAbsLibraries() async => [];
   static Future<void> clearEnabledAbsLibraries() async {}
   static Future<void> setDiscoveredAbsLibraries(List<dynamic> libraries) async {}

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/tv_display_provider.dart';
 import '../screens/settings_screen.dart';
-import '../screens/player_select_screen.dart';
 
 /// Menu dialog for TV app.
 /// Shows when Menu button is pressed on remote.

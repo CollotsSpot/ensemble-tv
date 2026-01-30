@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/player.dart';
 import '../providers/tv_display_provider.dart';
@@ -33,7 +34,7 @@ class _PlayerSelectScreenState extends State<PlayerSelectScreen> {
         _checkingServer = false;
       });
 
-      // Only load players if server is configured
+      // Initialize provider if server is configured
       if (_serverUrl != null && _serverUrl!.isNotEmpty) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           context.read<TVDisplayProvider>().initialize();
@@ -46,7 +47,22 @@ class _PlayerSelectScreenState extends State<PlayerSelectScreen> {
   Widget build(BuildContext context) {
     // Show configure server screen if no server URL is set
     if (!_checkingServer && (_serverUrl == null || _serverUrl!.isEmpty)) {
-      return _buildConfigureServer(context);
+      // Use WidgetsBinding to show settings and re-check when returning
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final result = await Navigator.of(context).push<bool>(
+          MaterialPageRoute(builder: (context) => const SettingsScreen()),
+        );
+        if (result == true && mounted) {
+          _checkServerConfig();
+        }
+      });
+      // Return loading indicator while showing settings
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+        ),
+      );
     }
 
     return Scaffold(
@@ -56,7 +72,7 @@ class _PlayerSelectScreenState extends State<PlayerSelectScreen> {
           builder: (context, provider, child) {
             if (_checkingServer || provider.isLoading) {
               return const Center(
-                child: CircularProgressIndicator(color: Colors.white),
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
               );
             }
 
@@ -84,27 +100,36 @@ class _PlayerSelectScreenState extends State<PlayerSelectScreen> {
   ) {
     return Column(
       children: [
-        const SizedBox(height: 80),
-        const Text(
-          'Welcome to Ensemble TV',
-          style: TextStyle(
-            fontSize: 48,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+        const SizedBox(height: 24),
+        // Header with settings button
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Row(
+            children: [
+              const Text(
+                'Select Player',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              const Spacer(),
+              IconButton(
+                onPressed: () async {
+                  await Navigator.of(context).push<bool>(
+                    MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                  );
+                  _checkServerConfig();
+                },
+                icon: const Icon(Icons.settings, color: Colors.white, size: 20),
+                iconSize: 20,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 20),
-        const Text(
-          'Which player should I control?',
-          style: TextStyle(
-            fontSize: 32,
-            color: Colors.grey,
-          ),
-        ),
-        const SizedBox(height: 60),
+        const SizedBox(height: 16),
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 80),
+            padding: const EdgeInsets.symmetric(horizontal: 24),
             itemCount: players.length,
             itemBuilder: (context, index) {
               final player = players[index];
@@ -115,84 +140,60 @@ class _PlayerSelectScreenState extends State<PlayerSelectScreen> {
             },
           ),
         ),
-        const Padding(
-          padding: EdgeInsets.only(bottom: 40),
-          child: Text(
-            'Use D-pad to select, press OK',
-            style: TextStyle(
-              fontSize: 24,
-              color: Colors.grey,
-            ),
-          ),
-        ),
       ],
     );
   }
 
   Widget _buildNoPlayers(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
+          Icon(
             Icons.speaker_outlined,
-            size: 80,
-            color: Colors.grey,
+            size: 32,
+            color: colorScheme.onSurface.withOpacity(0.5),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
           const Text(
             'No players found',
-            style: TextStyle(
-              fontSize: 32,
-              color: Colors.white,
-            ),
+            style: TextStyle(fontSize: 16, color: Colors.white),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           const Text(
             'Make sure Music Assistant is running',
-            style: TextStyle(
-              fontSize: 24,
-              color: Colors.grey,
-            ),
+            style: TextStyle(fontSize: 13, color: Colors.grey),
           ),
-          const SizedBox(height: 40),
+          const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              ElevatedButton(
+              TextButton.icon(
                 onPressed: () {
                   DebugLogsScreen.show(context);
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white24,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 20,
-                  ),
-                ),
-                child: const Text(
-                  'View Logs',
-                  style: TextStyle(fontSize: 24),
+                icon: const Icon(Icons.bug_report_outlined, size: 16),
+                label: const Text('Logs', style: TextStyle(fontSize: 13)),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white70,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
               ),
-              const SizedBox(width: 20),
+              const SizedBox(width: 12),
               ElevatedButton(
                 onPressed: () {
                   context.read<TVDisplayProvider>().loadPlayers();
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 40,
-                    vertical: 20,
-                  ),
+                  backgroundColor: colorScheme.primary,
+                  foregroundColor: colorScheme.onPrimary,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 0,
                 ),
-                child: const Text(
-                  'Retry',
-                  style: TextStyle(fontSize: 24),
-                ),
+                child: const Text('Retry', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -201,118 +202,51 @@ class _PlayerSelectScreenState extends State<PlayerSelectScreen> {
     );
   }
 
-  Widget _buildConfigureServer(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.settings,
-            size: 80,
-            color: Colors.white,
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Welcome to Ensemble TV',
-            style: TextStyle(
-              fontSize: 42,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Configure your Music Assistant server',
-            style: TextStyle(
-              fontSize: 24,
-              color: Colors.grey,
-            ),
-          ),
-          const SizedBox(height: 40),
-          ElevatedButton(
-            onPressed: () async {
-              final result = await Navigator.of(context).push<bool>(
-                MaterialPageRoute(builder: (context) => const SettingsScreen()),
-              );
-              if (result == true && mounted) {
-                _checkServerConfig();
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.black,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 60,
-                vertical: 24,
-              ),
-            ),
-            child: const Text(
-              'Open Settings',
-              style: TextStyle(fontSize: 28),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildError(BuildContext context, String error) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.error_outline,
-            size: 80,
-            color: Colors.red,
+          Icon(Icons.error_outline, size: 32, color: colorScheme.error),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              error,
+              style: const TextStyle(fontSize: 14, color: Colors.white),
+              textAlign: TextAlign.center,
+            ),
           ),
           const SizedBox(height: 20),
-          Text(
-            'Error: $error',
-            style: const TextStyle(
-              fontSize: 24,
-              color: Colors.white,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 40),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              ElevatedButton(
+              TextButton.icon(
                 onPressed: () {
                   DebugLogsScreen.show(context);
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white24,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 20,
-                  ),
-                ),
-                child: const Text(
-                  'View Logs',
-                  style: TextStyle(fontSize: 24),
+                icon: const Icon(Icons.bug_report_outlined, size: 16),
+                label: const Text('Logs', style: TextStyle(fontSize: 13)),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white70,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
               ),
-              const SizedBox(width: 20),
+              const SizedBox(width: 12),
               ElevatedButton(
                 onPressed: () {
                   context.read<TVDisplayProvider>().loadPlayers();
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 40,
-                    vertical: 20,
-                  ),
+                  backgroundColor: colorScheme.primary,
+                  foregroundColor: colorScheme.onPrimary,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 0,
                 ),
-                child: const Text(
-                  'Retry',
-                  style: TextStyle(fontSize: 24),
-                ),
+                child: const Text('Retry', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -331,7 +265,7 @@ class _PlayerSelectScreenState extends State<PlayerSelectScreen> {
   }
 }
 
-class _PlayerListItem extends StatelessWidget {
+class _PlayerListItem extends StatefulWidget {
   final Player player;
   final VoidCallback onTap;
 
@@ -341,75 +275,126 @@ class _PlayerListItem extends StatelessWidget {
   });
 
   @override
+  State<_PlayerListItem> createState() => _PlayerListItemState();
+}
+
+class _PlayerListItemState extends State<_PlayerListItem> {
+  final FocusNode _focusNode = FocusNode();
+  bool _isFocused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_onFocusChange);
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_onFocusChange);
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    if (mounted && _isFocused != _focusNode.hasFocus) {
+      setState(() => _isFocused = _focusNode.hasFocus);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: InkWell(
-        onTap: onTap,
-        focusColor: Colors.white24,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(30),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: Colors.white24,
-              width: 2,
-            ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 80,
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Focus(
+        focusNode: _focusNode,
+        onKeyEvent: (node, event) {
+          if (event is! KeyDownEvent) return KeyEventResult.ignored;
+          if (event.logicalKey == LogicalKeyboardKey.select ||
+              event.logicalKey == LogicalKeyboardKey.enter) {
+            widget.onTap();
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: Builder(
+          builder: (context) {
+            final isFocused = _focusNode.hasFocus;
+            return InkWell(
+              onTap: widget.onTap,
+              focusColor: colorScheme.primary.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
                 height: 80,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(12),
+                  color: colorScheme.surfaceVariant.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                  border: isFocused
+                      ? Border.all(color: colorScheme.primary, width: 3)
+                      : null,
                 ),
-                child: const Icon(
-                  Icons.speaker,
-                  size: 48,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 30),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Text(
-                      player.name,
-                      style: const TextStyle(
-                        fontSize: 36,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceVariant.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        widget.player.state == 'playing'
+                            ? Icons.play_arrow
+                            : Icons.speaker,
+                        size: 24,
+                        color: widget.player.state == 'playing'
+                            ? Colors.green
+                            : Colors.white70,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      player.provider ?? 'Unknown Player',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        color: Colors.grey,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.player.name,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            widget.player.provider ?? 'Unknown Player',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.white70,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    if (widget.player.state == 'playing')
+                      const Icon(Icons.volume_up, size: 24, color: Colors.green)
+                    else if (widget.player.available)
+                      const Icon(Icons.check_circle, size: 24, color: Colors.green)
+                    else
+                      const Icon(Icons.offline_bolt, size: 24, color: Colors.orange),
                   ],
                 ),
               ),
-              if (player.available)
-                const Icon(
-                  Icons.check_circle,
-                  size: 40,
-                  color: Colors.green,
-                )
-              else
-                const Icon(
-                  Icons.offline_bolt,
-                  size: 40,
-                  color: Colors.orange,
-                ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

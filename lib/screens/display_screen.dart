@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../models/media_item.dart';
 import '../providers/tv_display_provider.dart';
 import '../widgets/tv_album_art.dart';
 import '../widgets/tv_track_info.dart';
@@ -20,6 +20,7 @@ class DisplayScreen extends StatefulWidget {
 
 class _DisplayScreenState extends State<DisplayScreen> {
   Timer? _progressTimer;
+  final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
@@ -36,21 +37,78 @@ class _DisplayScreenState extends State<DisplayScreen> {
         provider.updateProgress();
       }
     });
+
+    // Request focus to receive key events
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+    });
   }
 
   @override
   void dispose() {
     _progressTimer?.cancel();
+    _focusNode.dispose();
     super.dispose();
+  }
+
+  void _handleKeyEvent(KeyEvent event) {
+    if (event is! KeyDownEvent) return;
+
+    final provider = context.read<TVDisplayProvider>();
+    if (provider.currentPlayer == null) return;
+
+    switch (event.logicalKey) {
+      // Playback controls
+      case LogicalKeyboardKey.select:
+      case LogicalKeyboardKey.enter:
+      case LogicalKeyboardKey.space:
+        provider.togglePlayPause();
+        break;
+      case LogicalKeyboardKey.arrowLeft:
+        provider.previousTrack();
+        break;
+      case LogicalKeyboardKey.arrowRight:
+        provider.nextTrack();
+        break;
+      // Volume controls
+      case LogicalKeyboardKey.arrowUp:
+        provider.volumeUp();
+        break;
+      case LogicalKeyboardKey.arrowDown:
+        provider.volumeDown();
+        break;
+      case LogicalKeyboardKey.keyM:
+        provider.toggleMute();
+        break;
+      // Shuffle and repeat
+      case LogicalKeyboardKey.keyS:
+        provider.toggleShuffle();
+        break;
+      case LogicalKeyboardKey.keyR:
+        provider.cycleRepeatMode();
+        break;
+      // Seek controls
+      case LogicalKeyboardKey.pageUp:
+      case LogicalKeyboardKey.bracketLeft:
+        provider.seek(-10);
+        break;
+      case LogicalKeyboardKey.pageDown:
+      case LogicalKeyboardKey.bracketRight:
+        provider.seek(10);
+        break;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Consumer<TVDisplayProvider>(
-          builder: (context, provider, child) {
+    return KeyboardListener(
+      focusNode: _focusNode,
+      onKeyEvent: _handleKeyEvent,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: Consumer<TVDisplayProvider>(
+            builder: (context, provider, child) {
             // Show player select if no player selected
             if (provider.selectedPlayerId == null) {
               return const Center(
@@ -163,7 +221,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
                 // Right side: Track info and progress (remaining space)
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 60),
+                    padding: const EdgeInsets.symmetric(horizontal: 40),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -174,6 +232,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
                             artist: currentTrack.artistsString,
                             album: currentTrack.album?.name ?? '',
                             isPlaying: currentPlayer?.isPlaying ?? false,
+                            accentColor: provider.dominantColor,
                           ),
                           const SizedBox(height: 40),
                           TVProgressBar(
@@ -197,7 +256,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
                             'Ready to play',
                             style: TextStyle(
                               fontSize: 32,
-                              color: Colors.white70,
+                              color: Colors.white,
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -205,7 +264,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
                             'Press Play on your remote to start playback',
                             style: TextStyle(
                               fontSize: 24,
-                              color: Colors.white60,
+                              color: Colors.white70,
                             ),
                           ),
                         ],
@@ -217,6 +276,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
             );
           },
         ),
+      ),
       ),
     );
   }

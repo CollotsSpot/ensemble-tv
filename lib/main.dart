@@ -77,7 +77,10 @@ class _EnsembleTVAppState extends State<EnsembleTVApp> {
         navigatorKey: _navigatorKey,
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.deepPurple,
+            brightness: Brightness.dark,
+          ),
           useMaterial3: true,
         ),
         home: const _AppRouter(),

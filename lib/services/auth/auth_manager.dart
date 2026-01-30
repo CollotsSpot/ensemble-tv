@@ -45,18 +45,46 @@ class AuthManager {
         _tvLogger.log('Response body: ${response.body}');
         final data = jsonDecode(response.body) as Map<String, dynamic>;
 
+        // Log all top-level keys in the response for debugging
+        _logger.log('Response keys: ${data.keys.toList()}');
+        _tvLogger.log('Response keys: ${data.keys.toList()}');
+
+        // Check for error_code format
         if (data.containsKey('error_code')) {
           _logger.log('✗ Login failed: ${data['error_code']} - ${data['details']}');
           _tvLogger.error('Login failed: ${data['error_code']} - ${data['details']}');
           return null;
         }
 
+        // Check for success/error format
+        if (data.containsKey('success') && data['success'] == false) {
+          final error = data['error'] as String? ?? 'Unknown error';
+          _logger.log('✗ Login failed: $error');
+          _tvLogger.error('Login failed: $error');
+          return null;
+        }
+
+        // Check if result object contains the access token
+        if (data.containsKey('result')) {
+          final result = data['result'] as Map<String, dynamic>?;
+          if (result != null && result.containsKey('access_token')) {
+            _accessToken = result['access_token'] as String?;
+            _logger.log('✓ Got access token from MA (in result object)');
+            _tvLogger.log('Got access token from MA (in result object)');
+
+            // Try to create a long-lived token
+            _longLivedToken = await _createLongLivedToken(apiUrl, _accessToken!);
+
+            return _longLivedToken ?? _accessToken;
+          }
+        }
+
         // MA API returns access_token at root level, not in result object
         _accessToken = data['access_token'] as String?;
 
         if (_accessToken != null) {
-          _logger.log('✓ Got access token from MA');
-          _tvLogger.log('Got access token from MA');
+          _logger.log('✓ Got access token from MA (root level)');
+          _tvLogger.log('Got access token from MA (root level)');
 
           // Try to create a long-lived token
           _longLivedToken = await _createLongLivedToken(apiUrl, _accessToken!);

@@ -20,6 +20,11 @@ class KeyEventHandler(private val channel: MethodChannel) {
             return false
         }
 
+        // Ignore repeat events (when holding down a button) to avoid multiple triggers
+        if (event.repeatCount > 0) {
+            return false
+        }
+
         return when (event.keyCode) {
             // Play/Pause button
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,

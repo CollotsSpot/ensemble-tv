@@ -1485,7 +1485,8 @@ class MusicAssistantAPI {
             } else if (albumUri == null) {
               _logger.log('  ⚠️ Track "$trackName" has no album');
             }
-          } catch (_) {
+          } catch (e) {
+            _logger.log('⚠️ Skipping track due to parse error: $e');
             continue;
           }
         }
@@ -1513,7 +1514,8 @@ class MusicAssistantAPI {
             if (albumData != null) {
               albums.add(Album.fromJson(albumData));
             }
-          } catch (_) {
+          } catch (e) {
+            _logger.log('⚠️ Skipping album due to parse error: $e');
             continue;
           }
         }

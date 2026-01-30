@@ -1,17 +1,26 @@
 import 'dart:async';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:palette_generator/palette_generator.dart';
+import 'package:color_thief_dart/color_thief_dart.dart';
+import 'package:dio/dio.dart';
 import '../models/media_item.dart';
 import '../models/player.dart';
 import '../services/music_assistant_api.dart';
 import '../services/auth/auth_manager.dart';
 import '../services/settings_service.dart';
+import '../services/debug_logger.dart';
 
 /// Provider for TV display state.
 /// Manages connection to Music Assistant, player selection, and current track display.
 class TVDisplayProvider extends ChangeNotifier {
   static const String _selectedPlayerKey = 'selected_player_id';
+  static final _logger = DebugLogger();
+
+  // Color cache to avoid re-extracting from same album art
+  static final Map<String, Color> _colorCache = {};
+  static const int _maxColorCacheSize = 50;
 
   // Services
   MusicAssistantAPI? _api;
@@ -57,10 +66,21 @@ class TVDisplayProvider extends ChangeNotifier {
 
     // Calculate progress based on elapsed time and duration
     final elapsed = _currentPlayer!.currentElapsedTime;
-    if (elapsed != null && _duration != null) {
+
+    if (elapsed > 0 && _duration != null) {
+      // We have real elapsed time from server - use it
       _currentTime = Duration(seconds: elapsed.round());
       _progress = _currentTime!.inMilliseconds / _duration!.inMilliseconds;
       notifyListeners();
+    } else if (_currentPlayer!.isPlaying && _duration != null) {
+      // No elapsed time from server yet, but we have a duration and player is playing
+      // Interpolate forward - this will be corrected when server sends real elapsed time
+      _currentTime ??= Duration.zero;
+      _currentTime = _currentTime! + const Duration(seconds: 1);
+      if (_currentTime!.inMilliseconds <= _duration!.inMilliseconds) {
+        _progress = _currentTime!.inMilliseconds / _duration!.inMilliseconds;
+        notifyListeners();
+      }
     }
   }
 
@@ -68,7 +88,7 @@ class TVDisplayProvider extends ChangeNotifier {
   Future<void> initialize() async {
     // Guard against concurrent initialization
     if (_isInitializing) {
-      print('[TVDisplayProvider] Already initializing, skipping');
+      _logger.log('[TVDisplayProvider] Already initializing, skipping');
       return;
     }
 
@@ -95,10 +115,10 @@ class TVDisplayProvider extends ChangeNotifier {
       // Load saved token
       final token = await SettingsService.getToken();
       if (token != null && token.isNotEmpty && _authManager != null) {
-        print('[TVDisplayProvider] Loaded token from storage: ${token.substring(0, 10)}...');
+        _logger.log('[TVDisplayProvider] Loaded token from storage: ${token.substring(0, 10)}...');
         _authManager!.setToken(token);
       } else {
-        print('[TVDisplayProvider] No token found in storage (token=$token)');
+        _logger.log('[TVDisplayProvider] No token found in storage (token=$token)');
       }
 
       // Dispose old API connection if exists
@@ -109,25 +129,25 @@ class TVDisplayProvider extends ChangeNotifier {
       _api = MusicAssistantAPI(serverUrl, _authManager!);
 
       // Log token status before connecting
-      print('[TVDisplayProvider] AuthManager hasCredentials: ${_authManager!.hasCredentials}');
-      print('[TVDisplayProvider] AuthManager token: ${_authManager!.token?.substring(0, 10) ?? "null"}...');
+      _logger.log('[TVDisplayProvider] AuthManager hasCredentials: ${_authManager!.hasCredentials}');
+      _logger.log('[TVDisplayProvider] AuthManager token: ${_authManager!.token?.substring(0, 10) ?? "null"}...');
 
       // Listen to connection state
       _connectionStateSubscription = _api!.connectionState.listen((state) {
-        print('[TVDisplayProvider] Connection state changed: $state');
+        _logger.log('[TVDisplayProvider] Connection state changed: $state');
         if (state == MAConnectionState.authenticated) {
-          print('[TVDisplayProvider] Authenticated - calling _onConnected()');
+          _logger.log('[TVDisplayProvider] Authenticated - calling _onConnected()');
           _onConnected();
         } else if (state == MAConnectionState.connected) {
           // Connected but may need auth or may already be authenticated
-          print('[TVDisplayProvider] Connected - isAuthenticated: ${_api!.isAuthenticated}, authRequired: ${_api!.authRequired}');
+          _logger.log('[TVDisplayProvider] Connected - isAuthenticated: ${_api!.isAuthenticated}, authRequired: ${_api!.authRequired}');
           if (_api!.isAuthenticated || !_api!.authRequired) {
             // Already authenticated or no auth needed
-            print('[TVDisplayProvider] No auth needed - calling _onConnected()');
+            _logger.log('[TVDisplayProvider] No auth needed - calling _onConnected()');
             _onConnected();
           } else {
             // Authentication required - trigger it
-            print('[TVDisplayProvider] Authentication required - triggering auth...');
+            _logger.log('[TVDisplayProvider] Authentication required - triggering auth...');
             _handleAuthentication();
           }
         } else if (state == MAConnectionState.error) {
@@ -243,10 +263,13 @@ class TVDisplayProvider extends ChangeNotifier {
       _loadCurrentTrack();
     }
 
-    // Update progress
-    if (_currentPlayer!.elapsedTime != null && _duration != null) {
-      _currentTime = Duration(seconds: _currentPlayer!.currentElapsedTime.round());
-      _progress = _currentTime!.inMilliseconds / _duration!.inMilliseconds;
+    // Update progress - this runs on every player update, including the first one
+    if (_duration != null && _duration!.inMilliseconds > 0) {
+      final elapsed = _currentPlayer!.currentElapsedTime;
+      if (elapsed > 0) {
+        _currentTime = Duration(seconds: elapsed.round());
+        _progress = _currentTime!.inMilliseconds / _duration!.inMilliseconds;
+      }
     }
 
     notifyListeners();
@@ -269,9 +292,15 @@ class TVDisplayProvider extends ChangeNotifier {
           _extractAlbumColor(_albumArtUrl!);
         }
 
-        // Update duration
+        // Update duration and initialize progress from player's current position
         if (item.track.duration != null) {
           _duration = item.track.duration;
+          // Initialize progress from player's current elapsed time if available
+          final elapsed = _currentPlayer?.currentElapsedTime ?? 0;
+          if (elapsed > 0) {
+            _currentTime = Duration(seconds: elapsed.round());
+            _progress = _currentTime!.inMilliseconds / _duration!.inMilliseconds;
+          }
         }
 
         notifyListeners();
@@ -284,19 +313,19 @@ class TVDisplayProvider extends ChangeNotifier {
   /// Get album art URL from track
   String? _getAlbumArtUrl(Track? track) {
     if (track == null || _api == null) {
-      print('[TVDisplayProvider] _getAlbumArtUrl: track=$track, api=$_api');
+      _logger.log('[TVDisplayProvider] _getAlbumArtUrl: track=$track, api=$_api');
       return null;
     }
 
-    print('[TVDisplayProvider] _getAlbumArtUrl: track has metadata=${track.metadata != null}');
+    _logger.log('[TVDisplayProvider] _getAlbumArtUrl: track has metadata=${track.metadata != null}');
 
     // Use the API's getImageUrl method for proper authentication
     try {
       final imageUrl = _api!.getImageUrl(track, size: 512);
-      print('[TVDisplayProvider] getImageUrl returned: $imageUrl');
+      _logger.log('[TVDisplayProvider] getImageUrl returned: $imageUrl');
       if (imageUrl != null) return imageUrl;
     } catch (e) {
-      print('[TVDisplayProvider] getImageUrl error: $e');
+      _logger.log('[TVDisplayProvider] getImageUrl error: $e');
     }
 
     // Fallback: Try to get image from metadata
@@ -305,7 +334,7 @@ class TVDisplayProvider extends ChangeNotifier {
       final image = metadata['image'] as Map<String, dynamic>?;
       if (image != null) {
         final url = image['url'] as String?;
-        print('[TVDisplayProvider] Using fallback image URL: $url');
+        _logger.log('[TVDisplayProvider] Using fallback image URL: $url');
         return url;
       }
     }
@@ -315,29 +344,85 @@ class TVDisplayProvider extends ChangeNotifier {
       final albumImage = track.album!.metadata!['image'] as Map<String, dynamic>?;
       if (albumImage != null) {
         final url = albumImage['url'] as String?;
-        print('[TVDisplayProvider] Using album fallback image URL: $url');
+        _logger.log('[TVDisplayProvider] Using album fallback image URL: $url');
         return url;
       }
     }
 
-    print('[TVDisplayProvider] No image URL found');
+    _logger.log('[TVDisplayProvider] No image URL found');
     return null;
   }
 
-  /// Extract dominant color from album art
+  /// Extract dominant color from album art using ColorThief
+  /// Matches Home Assistant's ColorExtractor algorithm
   Future<void> _extractAlbumColor(String imageUrl) async {
-    try {
-      final paletteGenerator = await PaletteGenerator.fromImageProvider(
-        NetworkImage(imageUrl),
-        size: const Size(100, 100), // Small size for performance
-      );
+    // Check cache first
+    if (_colorCache.containsKey(imageUrl)) {
+      _dominantColor = _colorCache[imageUrl];
+      notifyListeners();
+      return;
+    }
 
-      if (paletteGenerator.colors.isNotEmpty) {
-        _dominantColor = paletteGenerator.dominantColor?.color;
-        notifyListeners();
+    try {
+      // Download image bytes
+      final dio = Dio();
+      final response = await dio.get(imageUrl,
+        options: Options(responseType: ResponseType.bytes));
+      final bytes = response.data as List<int>;
+
+      // Convert List<int> to Uint8List
+      final uint8list = Uint8List.fromList(bytes);
+
+      // Convert bytes to dart:ui Image
+      final codec = await ui.instantiateImageCodec(uint8list);
+      final frame = await codec.getNextFrame();
+      final image = frame.image;
+
+      // Use ColorThief to extract a palette and pick a suitable color
+      // quality=1 matches HA's setting (highest quality)
+      final palette = await getPaletteFromImage(image, 10, 5);
+
+      image.dispose();
+      codec.dispose();
+
+      if (palette != null && palette.isNotEmpty) {
+        // Find first color that's not too dark (avoid black backgrounds)
+        Color? selectedColor;
+        for (final rgb in palette) {
+          if (rgb.length >= 3) {
+            final color = Color.fromRGBO(rgb[0], rgb[1], rgb[2], 1.0);
+            // Calculate perceived brightness (YUV formula)
+            final brightness = (0.299 * color.red + 0.587 * color.green + 0.114 * color.blue);
+            // Skip very dark colors (< 50 out of 255)
+            if (brightness >= 50) {
+              selectedColor = color;
+              break;
+            }
+          }
+        }
+
+        // If all colors are dark, use the first one anyway (will be dimmed)
+        if (selectedColor == null && palette.isNotEmpty && palette[0].length >= 3) {
+          final rgb = palette[0];
+          selectedColor = Color.fromRGBO(rgb[0], rgb[1], rgb[2], 1.0);
+        }
+
+        if (selectedColor != null) {
+          _dominantColor = selectedColor;
+
+          // Cache the color with LRU eviction
+          if (_colorCache.length >= _maxColorCacheSize) {
+            // Remove first entry (simple LRU)
+            _colorCache.remove(_colorCache.keys.first);
+          }
+          _colorCache[imageUrl] = selectedColor;
+
+          notifyListeners();
+        }
       }
     } catch (e) {
       // Ignore color extraction errors
+      _logger.log('[TVDisplayProvider] Color extraction error: $e');
     }
   }
 
@@ -378,32 +463,119 @@ class TVDisplayProvider extends ChangeNotifier {
     }
   }
 
+  /// Adjust volume up
+  Future<void> volumeUp() async {
+    if (_api == null || _currentPlayer == null) return;
+
+    try {
+      final currentVolume = _currentPlayer!.volume;
+      final newVolume = (currentVolume + 5).clamp(0, 100);
+      await _api!.setVolume(_currentPlayer!.playerId, newVolume);
+    } catch (e) {
+      _setError('Failed to adjust volume: $e');
+    }
+  }
+
+  /// Adjust volume down
+  Future<void> volumeDown() async {
+    if (_api == null || _currentPlayer == null) return;
+
+    try {
+      final currentVolume = _currentPlayer!.volume;
+      final newVolume = (currentVolume - 5).clamp(0, 100);
+      await _api!.setVolume(_currentPlayer!.playerId, newVolume);
+    } catch (e) {
+      _setError('Failed to adjust volume: $e');
+    }
+  }
+
+  /// Toggle mute
+  Future<void> toggleMute() async {
+    if (_api == null || _currentPlayer == null) return;
+
+    try {
+      await _api!.setMute(_currentPlayer!.playerId, !_currentPlayer!.isMuted);
+    } catch (e) {
+      _setError('Failed to toggle mute: $e');
+    }
+  }
+
+  /// Toggle shuffle
+  Future<void> toggleShuffle() async {
+    if (_api == null || _currentPlayer == null || _currentPlayer!.activeQueue == null) return;
+
+    try {
+      // Get current queue to check shuffle state
+      final queue = await _api!.getQueue(_currentPlayer!.playerId);
+      if (queue != null) {
+        await _api!.toggleShuffle(_currentPlayer!.activeQueue!, !queue.shuffle);
+      }
+    } catch (e) {
+      _setError('Failed to toggle shuffle: $e');
+    }
+  }
+
+  /// Cycle repeat mode
+  Future<void> cycleRepeatMode() async {
+    if (_api == null || _currentPlayer == null || _currentPlayer!.activeQueue == null) return;
+
+    try {
+      final queue = await _api!.getQueue(_currentPlayer!.playerId);
+      if (queue != null) {
+        String newMode;
+        if (queue.repeatOff) {
+          newMode = 'all';
+        } else if (queue.repeatAll) {
+          newMode = 'one';
+        } else {
+          newMode = 'off';
+        }
+        await _api!.setRepeatMode(_currentPlayer!.activeQueue!, newMode);
+      }
+    } catch (e) {
+      _setError('Failed to change repeat mode: $e');
+    }
+  }
+
+  /// Seek forward/backward
+  Future<void> seek(int seconds) async {
+    if (_api == null || _currentPlayer == null || _currentPlayer!.activeQueue == null) return;
+
+    try {
+      final currentPos = _currentTime?.inSeconds ?? 0;
+      final newPos = (currentPos + seconds).clamp(0, _duration?.inSeconds ?? 0);
+      await _api!.seek(_currentPlayer!.activeQueue!, newPos);
+    } catch (e) {
+      _setError('Failed to seek: $e');
+    }
+  }
+
   /// Handle authentication after WebSocket connection
   Future<void> _handleAuthentication() async {
     if (_authManager == null || _api == null) {
-      print('[TVDisplayProvider] AuthManager or API is null, cannot authenticate');
+      _logger.log('[TVDisplayProvider] AuthManager or API is null, cannot authenticate');
       _setError('Authentication failed');
       return;
     }
 
     final token = _authManager!.token;
     if (token == null || token.isEmpty) {
-      print('[TVDisplayProvider] No token available for authentication');
+      _logger.log('[TVDisplayProvider] No token available for authentication');
       _setError('No authentication token found. Please login again.');
       return;
     }
 
     try {
-      print('[TVDisplayProvider] Authenticating with token...');
+      _logger.log('[TVDisplayProvider] Authenticating with token...');
       final success = await _api!.authenticateWithToken(token);
       if (success) {
-        print('[TVDisplayProvider] Authentication successful');
+        _logger.log('[TVDisplayProvider] Authentication successful');
       } else {
-        print('[TVDisplayProvider] Authentication failed - token may be invalid');
+        _logger.log('[TVDisplayProvider] Authentication failed - token may be invalid');
         _setError('Authentication failed. Please login again.');
       }
     } catch (e) {
-      print('[TVDisplayProvider] Authentication error: $e');
+      _logger.log('[TVDisplayProvider] Authentication error: $e');
       _setError('Authentication error: $e');
     }
   }

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-/// Non-seekable progress bar for TV display.
-/// Shows current playback position and duration.
+/// Non-seekable progress display for TV.
+/// Shows current playback position as "current/total" time format.
 class TVProgressBar extends StatelessWidget {
   final double progress; // 0.0 to 1.0
   final Duration? duration;
   final Duration? currentTime;
-  final Color? accentColor; // Album art dominant color for progress fill
+  final Color? accentColor; // Album art dominant color for progress display
 
   const TVProgressBar({
     super.key,
@@ -25,54 +26,20 @@ class TVProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Progress bar
-        Container(
-          height: 6,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2), // Subtle background
-            borderRadius: BorderRadius.circular(3),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(3),
-            child: FractionallySizedBox(
-              widthFactor: progress.clamp(0.0, 1.0),
-              alignment: Alignment.centerLeft,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: accentColor ?? Colors.white, // Use accent color or white
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-            ),
-          ),
-        ),
+    final useAccent = accentColor != null;
+    final textColor = useAccent
+        ? accentColor!.withOpacity(0.9)
+        : const Color(0xE6FFFFFF);
 
-        const SizedBox(height: 12),
-
-        // Time display - always white with different opacities
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              _formatDuration(currentTime),
-              style: const TextStyle(
-                fontSize: 20,
-                color: Color(0xE6FFFFFF), // White with 90% opacity
-              ),
-            ),
-            Text(
-              _formatDuration(duration),
-              style: const TextStyle(
-                fontSize: 20,
-                color: Color(0xB3FFFFFF), // White with 70% opacity
-              ),
-            ),
-          ],
+    return Text(
+      '${_formatDuration(currentTime)} / ${_formatDuration(duration)}',
+      style: GoogleFonts.courierPrime(
+        textStyle: TextStyle(
+          fontSize: 20,
+          color: textColor,
+          letterSpacing: 1.2,
         ),
-      ],
+      ),
     );
   }
 }
