@@ -100,6 +100,12 @@ class Player {
   static final Map<String, double> _playerCreationTimes = {};
   static const int _maxCreationTimesEntries = 50;
 
+  /// Reset interpolation cache for a specific player
+  /// Call this when reconnecting to a player to avoid using stale cached timestamps
+  static void resetInterpolationCache(String playerId) {
+    _playerCreationTimes.removeWhere((key, _) => key.startsWith('$playerId:'));
+  }
+
   /// Clean up old creation time entries using LRU eviction
   static void _cleanupCreationTimes() {
     if (_playerCreationTimes.length <= _maxCreationTimesEntries) return;

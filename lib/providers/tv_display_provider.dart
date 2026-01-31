@@ -177,13 +177,137 @@ class TVDisplayProvider extends ChangeNotifier {
 
     try {
       final players = await _api!.getPlayers();
-      _availablePlayers = players;
+
+      // Filter out duplicate Sendspin players (same logic as mobile app)
+      _availablePlayers = _filterDuplicatePlayers(players);
+
       notifyListeners();
     } catch (e) {
       _setError('Failed to load players: $e');
     } finally {
       _setLoading(false);
     }
+  }
+
+  /// Filter out duplicate Sendspin players
+  /// When grouped: show Sendspin version, hide original Cast
+  /// When ungrouped: show original Cast, hide Sendspin version
+  List<Player> _filterDuplicatePlayers(List<Player> allPlayers) {
+    const sendspinSuffix = ' (Sendspin)';
+
+    // Detect Sendspin players by name suffix or raw ID pattern
+    bool isSendspinPlayer(Player p) {
+      if (p.name.endsWith(sendspinSuffix)) return true;
+      // Check for Sendspin players named with their raw ID (cast-{uuid-prefix})
+      if (p.playerId.startsWith('cast-') && p.name == p.playerId) return true;
+      return false;
+    }
+
+    final sendspinPlayers = allPlayers.where(isSendspinPlayer).toList();
+
+    if (sendspinPlayers.isEmpty) {
+      // No Sendspin players, return all
+      return allPlayers;
+    }
+
+    // Build maps for Sendspin players and their grouped status
+    final sendspinByBaseName = <String, Player>{};
+    final groupedSendspinBaseNames = <String>{};
+    final rawIdSendspinPlayers = <String, Player>{};
+
+    for (final player in sendspinPlayers) {
+      String baseName;
+      Player? regularCastPlayer;
+
+      if (player.name.endsWith(sendspinSuffix)) {
+        // Standard "(Sendspin)" suffix naming
+        baseName = player.name.substring(0, player.name.length - sendspinSuffix.length);
+        regularCastPlayer = allPlayers.where(
+          (p) => p.name == baseName && !isSendspinPlayer(p)
+        ).firstOrNull;
+      } else if (player.playerId.startsWith('cast-') && player.name == player.playerId) {
+        // Raw ID naming (e.g., "cast-7df484e3") - find matching Cast player by UUID prefix
+        final sendspinPrefix = player.playerId.substring(5); // Remove "cast-" prefix
+        regularCastPlayer = allPlayers.where(
+          (p) => p.playerId.startsWith(sendspinPrefix) && !isSendspinPlayer(p)
+        ).firstOrNull;
+        baseName = regularCastPlayer?.name ?? player.name;
+        if (regularCastPlayer != null) {
+          rawIdSendspinPlayers[player.playerId] = player;
+          _logger.log('[TVDisplayProvider] Found raw-ID Sendspin player: ${player.playerId} matches Cast player "${regularCastPlayer.name}"');
+        }
+      } else {
+        continue;
+      }
+
+      sendspinByBaseName[baseName] = player;
+
+      if (player.isGrouped) {
+        groupedSendspinBaseNames.add(baseName);
+        _logger.log('[TVDisplayProvider] Sendspin player "$baseName" is grouped - will prefer Sendspin version');
+      } else {
+        _logger.log('[TVDisplayProvider] Sendspin player "$baseName" is ungrouped - will prefer original Cast');
+      }
+    }
+
+    // Filter players based on grouped status
+    var filteredPlayers = allPlayers.where((player) {
+      final isSendspin = isSendspinPlayer(player);
+
+      if (isSendspin) {
+        // Get base name for this Sendspin player
+        String baseName;
+        if (player.name.endsWith(sendspinSuffix)) {
+          baseName = player.name.substring(0, player.name.length - sendspinSuffix.length);
+        } else if (rawIdSendspinPlayers.containsKey(player.playerId)) {
+          baseName = sendspinByBaseName.entries
+              .firstWhere((e) => e.value.playerId == player.playerId,
+                  orElse: () => MapEntry(player.name, player))
+              .key;
+        } else {
+          baseName = player.name;
+        }
+
+        // Keep Sendspin only if grouped
+        if (player.isGrouped) {
+          return true;
+        } else {
+          _logger.log('[TVDisplayProvider] Hiding ungrouped Sendspin player: ${player.name}');
+          return false;
+        }
+      } else {
+        // For regular players, hide if Sendspin version exists AND is grouped
+        if (groupedSendspinBaseNames.contains(player.name)) {
+          _logger.log('[TVDisplayProvider] Preferring grouped Sendspin version over: ${player.name}');
+          return false;
+        }
+        return true;
+      }
+    }).toList();
+
+    // Rename remaining Sendspin players to remove the suffix or give proper name
+    filteredPlayers = filteredPlayers.map((player) {
+      if (player.name.endsWith(sendspinSuffix)) {
+        final cleanName = player.name.substring(0, player.name.length - sendspinSuffix.length);
+        _logger.log('[TVDisplayProvider] Renaming "${player.name}" to "$cleanName"');
+        return player.copyWith(name: cleanName);
+      }
+      // Rename raw ID Sendspin players to their proper name
+      if (rawIdSendspinPlayers.containsKey(player.playerId)) {
+        final properName = sendspinByBaseName.entries
+            .firstWhere((e) => e.value.playerId == player.playerId,
+                orElse: () => MapEntry(player.name, player))
+            .key;
+        if (properName != player.name) {
+          _logger.log('[TVDisplayProvider] Renaming raw ID Sendspin "${player.name}" to "$properName"');
+          return player.copyWith(name: properName);
+        }
+      }
+      return player;
+    }).toList();
+
+    _logger.log('[TVDisplayProvider] Filtered ${allPlayers.length} players down to ${filteredPlayers.length}');
+    return filteredPlayers;
   }
 
   /// Select a player to control
@@ -215,10 +339,13 @@ class TVDisplayProvider extends ChangeNotifier {
   }
 
   /// Subscribe to updates for the selected player
-  Future<void> _subscribeToPlayer() async {
+  Future<void> _subscribeToPlayer({bool forceReloadTrack = false}) async {
     if (_api == null || _selectedPlayerId == null) return;
 
     try {
+      // Reset interpolation cache for this player to avoid stale progress
+      Player.resetInterpolationCache(_selectedPlayerId!);
+
       // Subscribe to player update events
       _playerUpdateSubscription = _api!.playerUpdatedEvents.listen(_onPlayerUpdate);
 
@@ -235,9 +362,9 @@ class TVDisplayProvider extends ChangeNotifier {
         ),
       );
 
-      // Get current track if playing
+      // Get current track if playing - force reload when resubscribing to refresh duration
       if (_currentPlayer!.currentItemId != null) {
-        await _loadCurrentTrack();
+        await _loadCurrentTrack(forceReload: forceReloadTrack);
       }
 
       notifyListeners();
@@ -261,6 +388,9 @@ class TVDisplayProvider extends ChangeNotifier {
     if (oldItemId != newItemId && newItemId != null) {
       // Track changed - reload track info
       _loadCurrentTrack();
+    } else if (newItemId != null && _duration == null) {
+      // Same track but duration not loaded (e.g., after reconnect) - force reload
+      _loadCurrentTrack(forceReload: true);
     }
 
     // Update progress - this runs on every player update, including the first one
@@ -276,14 +406,14 @@ class TVDisplayProvider extends ChangeNotifier {
   }
 
   /// Load current track info
-  Future<void> _loadCurrentTrack() async {
+  Future<void> _loadCurrentTrack({bool forceReload = false}) async {
     if (_api == null || _currentPlayer == null) return;
 
     try {
       final queue = await _api!.getQueue(_currentPlayer!.playerId);
       final item = queue?.currentItem;
 
-      if (item != null && item.track != _currentTrack) {
+      if (item != null && (forceReload || item.track != _currentTrack)) {
         _currentTrack = item.track;
 
         // Get album art URL and extract dominant color
