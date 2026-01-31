@@ -29,8 +29,11 @@ class TVAlbumArt extends StatelessWidget {
               )
             : null,
       ),
-      child: imageUrl != null && imageUrl!.isNotEmpty
-          ? CachedNetworkImage(
+      child: Stack(
+        fit: StackFit.passthrough,
+        children: [
+          if (imageUrl != null && imageUrl!.isNotEmpty)
+            CachedNetworkImage(
               imageUrl: imageUrl!,
               fit: BoxFit.contain,
               placeholder: (context, url) => _buildSkeletonLoader(context),
@@ -42,13 +45,22 @@ class TVAlbumArt extends StatelessWidget {
                 ),
               ),
             )
-          : const Center(
+          else
+            const Center(
               child: Icon(
                 Icons.album,
                 size: 200,
                 color: Colors.white24,
               ),
             ),
+          // Dark overlay to reduce brightness
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(0.30),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
