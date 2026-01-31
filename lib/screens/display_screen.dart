@@ -230,7 +230,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
                           TVTrackInfo(
                             title: currentTrack.name,
                             artist: currentTrack.artistsString,
-                            album: currentTrack.album?.name ?? '',
+                            album: currentTrack.album?.nameWithYear ?? '',
                             isPlaying: currentPlayer?.isPlaying ?? false,
                             accentColor: provider.dominantColor,
                           ),
