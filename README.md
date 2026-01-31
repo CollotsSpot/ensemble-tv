@@ -54,6 +54,23 @@ On first launch, you'll need to configure:
 | R | Cycle Repeat Mode (Off → All → One) |
 | Page Up/Down | Seek backward/forward 10 seconds |
 
+## Screenshots
+
+### Now Playing
+Large album art display with track info and progress bar.
+
+![Now Playing](screenshot.png)
+
+### Player Select
+Choose from available Music Assistant players with visual status indicators.
+
+![Player Select](screenshot2.png)
+
+### Settings
+Configure your Music Assistant server connection and credentials.
+
+![Settings](screenshot3.png)
+
 ## Home Assistant Integration
 
 If you use Home Assistant, you can set up an automation to automatically launch Ensemble TV when your Music Assistant player starts playing.
