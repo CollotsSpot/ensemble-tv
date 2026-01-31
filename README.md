@@ -64,12 +64,12 @@ Large album art display with track info and progress bar.
 ### Player Select
 Choose from available Music Assistant players with visual status indicators.
 
-![Player Select](screenshot2.png)
+![Player Select](screenshot_player_select.png)
 
 ### Settings
 Configure your Music Assistant server connection and credentials.
 
-![Settings](screenshot3.png)
+![Settings](screenshot_settings.png)
 
 ## Home Assistant Integration
 
