@@ -57,11 +57,11 @@ On first launch, you'll need to configure:
 ## Screenshots
 
 ### Now Playing
-Large album art display with track info and progress bar.
+Large album art display with track info and progress bar. The app extracts the dominant color from album art to create a matching background gradient.
 
-![Now Playing](screenshot.png)
-![Now Playing 2](screenshot2.png)
-![Now Playing 3](screenshot3.png)
+![Now Playing - Darkambient](screenshot.png)
+![Now Playing - Electronic](screenshot2.png)
+![Now Playing - Jazz](screenshot3.png)
 
 ### Player Select
 Choose from available Music Assistant players with visual status indicators.
@@ -103,7 +103,7 @@ action:
 ### Notes
 
 - Replace `media_player.living_room_hifi` with your actual Music Assistant player entity
-- Replace `media_player.android_tv_192_168_4_151` with your Android TV entity
+- Replace `media_player.android_tv_192_168_1_100` with your Android TV entity
 - You can add multiple triggers for different players
 - The automation works with the Android TV ADB integration to launch apps remotely
 
