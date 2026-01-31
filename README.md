@@ -60,6 +60,8 @@ On first launch, you'll need to configure:
 Large album art display with track info and progress bar.
 
 ![Now Playing](screenshot.png)
+![Now Playing 2](screenshot2.png)
+![Now Playing 3](screenshot3.png)
 
 ### Player Select
 Choose from available Music Assistant players with visual status indicators.
