@@ -1,6 +1,6 @@
 # Ensemble TV
 
-A simple Flutter-based Google TV client for [Music Assistant](https://github.com/music-assistant/server).
+A simple Flutter-based Google TV client for Music Assistant
 
 ## What This App Is
 
