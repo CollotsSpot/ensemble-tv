@@ -1,7 +1,7 @@
 name: ensemble_tv
 description: Ensemble for Google TV - Display and control your Music Assistant players
 publish_to: 'none'
-version: 1.0.1+2
+version: 1.0.2+3
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -24,12 +24,8 @@ dependencies:
   flutter_secure_storage: ^9.2.2
 
   # Utilities
-  palette_generator: ^0.3.3+3
   color_thief_dart: ^0.1.0
-  image: ^4.3.0
   uuid: ^4.2.1
-  device_info_plus: ^10.1.0
-  material_color_utilities: ^0.11.1
   google_fonts: ^6.2.1
 
 dev_dependencies:
