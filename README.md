@@ -2,6 +2,9 @@
 
 A simple Flutter-based Google TV client for Music Assistant
 
+  [![GitHub release](https://img.shields.io/badge/Release-v1.0.2-blue?style=for-the-badge&logo=github)](https://github.com/CollotsSpot/ensemble-tv/releases)
+  [![GitHub Downloads](https://img.shields.io/github/downloads/CollotsSpot/ensemble-tv/latest/total?style=for-the-badge&logo=android&label=APK%20Downloads&color=green)](https://github.com/CollotsSpot/ensemble-tv/releases/latest)
+
 ## What This App Is
 
 Ensemble TV is a **minimal, focused app** that does one thing: displays what's currently playing on a selected Music Assistant player.
