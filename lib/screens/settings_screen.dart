@@ -162,7 +162,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           case LogicalKeyboardKey.enter:
           case LogicalKeyboardKey.numpadEnter:
-            // Handle OK/Enter button press
+          case LogicalKeyboardKey.select:
+            // Handle OK/Enter/D-pad center button press
             if (_saveButtonFocus.hasFocus) {
               _saveAndLogin();
               return KeyEventResult.handled;
@@ -218,10 +219,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _FocusableTextField(
                           controller: _serverUrlController,
                           focusNode: _serverUrlFocus,
-                          hintText: 'e.g., 192.168.1.100:8095',
+                          hintText: 'e.g., 192.168.1.100:8095 or music.example.com',
                           inputFormatters: [
                             FilteringTextInputFormatter.allow(
-                              RegExp(r'[a-zA-Z0-9.:\-]'),
+                              RegExp(r'[a-zA-Z0-9.:/_\-]'),
                             ),
                           ],
                         ),
